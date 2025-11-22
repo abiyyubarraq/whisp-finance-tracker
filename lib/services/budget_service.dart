@@ -34,10 +34,18 @@ class BudgetService {
 
     final expenses = snapshot.docs
         .map((doc) => Expense.fromFirestore(doc))
-        .where((expense) => spentTypes.contains(expense.spentType))
         .toList();
 
-    return expenses.fold<double>(0, (sum, expense) => sum + expense.value);
+    double totalSpent = 0;
+    for (var expense in expenses) {
+      for (var item in expense.items) {
+        if (spentTypes.contains(item.spentType)) {
+          totalSpent += item.value;
+        }
+      }
+    }
+
+    return totalSpent;
   }
 
   Future<void> checkBudgetAlerts(String userId) async {

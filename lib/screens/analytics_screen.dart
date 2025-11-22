@@ -77,7 +77,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   Widget _buildSummaryCards(List<Expense> expenses) {
-    final totalSpent = expenses.fold<double>(0, (sum, e) => sum + e.value);
+    final totalSpent = expenses.fold<double>(0, (sum, e) => sum + e.totalValue);
     final avgPerDay = totalSpent / _dateRange.duration.inDays.clamp(1, 999);
 
     return GradientGlassContainer(
@@ -207,8 +207,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final categoryTotals = <String, double>{};
 
     for (var expense in expenses) {
-      categoryTotals[expense.spentType] =
-          (categoryTotals[expense.spentType] ?? 0) + expense.value;
+      for (var item in expense.items) {
+        categoryTotals[item.spentType] =
+            (categoryTotals[item.spentType] ?? 0) + item.value;
+      }
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;

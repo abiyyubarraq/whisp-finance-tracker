@@ -6,11 +6,7 @@ import '../widgets/modern_app_bar.dart';
 import '../widgets/theme_toggle.dart';
 import '../config/theme.dart';
 import '../widgets/profile/profile_header.dart';
-import '../widgets/profile/payment_sources_section.dart';
-import '../widgets/profile/spent_types_section.dart';
-import '../widgets/common/custom_bottom_nav_bar.dart';
 import '../widgets/common/logout_dialog.dart';
-import 'add_expense_modal.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -33,10 +29,10 @@ class ProfileScreen extends ConsumerWidget {
           _buildMainContent(context, ref, user, isDark),
         ],
       ),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentRoute: '/profile',
-        onAddPressed: () => _showAddExpenseModal(context),
-      ),
+      // bottomNavigationBar: CustomBottomNavBar(
+      //   currentRoute: '/profile',
+      //   onAddPressed: () => _showAddExpenseModal(context),
+      // ),
     );
   }
 
@@ -116,7 +112,7 @@ class ProfileScreen extends ConsumerWidget {
       children: [
         PreferredSize(
           preferredSize: Size.fromHeight(80),
-          child: ModernAppBar(title: 'Profile'),
+          child: ModernAppBar(title: 'Profile', showBackButton: true),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -131,9 +127,9 @@ class ProfileScreen extends ConsumerWidget {
                 SizedBox(height: 24),
                 _buildPreferencesSection(context),
                 SizedBox(height: 24),
-                PaymentSourcesSection(userId: user.uid),
+                _buildPaymentSourcesSection(context, user.uid),
                 SizedBox(height: 24),
-                SpentTypesSection(userId: user.uid),
+                _buildSpentTypesSection(context, user.uid),
                 SizedBox(height: 24),
                 _buildLogoutButton(context, ref),
                 SizedBox(height: 24),
@@ -157,6 +153,34 @@ class ProfileScreen extends ConsumerWidget {
     ]);
   }
 
+  Widget _buildPaymentSourcesSection(BuildContext context, String userId) {
+    return _buildSection(context, 'Settings', [
+      _buildSettingItem(
+        context,
+        icon: Icons.account_balance_wallet_rounded,
+        title: 'Payment Sources',
+        subtitle: 'Edit Payment Sources',
+        onTap: () {
+          Navigator.pushNamed(context, '/profile/payment-sources');
+        },
+      ),
+    ]);
+  }
+
+  Widget _buildSpentTypesSection(BuildContext context, String userId) {
+    return _buildSection(context, '', [
+      _buildSettingItem(
+        context,
+        icon: Icons.category_rounded,
+        title: 'Spent Types',
+        subtitle: 'Edit Spent Types',
+        onTap: () {
+          Navigator.pushNamed(context, '/profile/spent-types');
+        },
+      ),
+    ]);
+  }
+
   Widget _buildSection(
     BuildContext context,
     String title,
@@ -167,20 +191,21 @@ class ProfileScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 12),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-                letterSpacing: 0.5,
+          if (title.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
-          ),
           GlassContainer(
             padding: EdgeInsets.all(8),
             child: Column(children: children),
@@ -307,15 +332,6 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-
-  void _showAddExpenseModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const AddExpenseModal(),
     );
   }
 }

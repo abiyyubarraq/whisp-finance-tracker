@@ -13,6 +13,8 @@ import 'screens/main_screen.dart';
 import 'screens/expense_list_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/analytics_screen.dart';
+import 'screens/payment_sources_management_screen.dart';
+import 'screens/spent_types_management_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -52,6 +54,9 @@ class MyApp extends ConsumerWidget {
         '/expenses': (context) => const ExpenseListScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/analytics': (context) => const AnalyticsScreen(),
+        '/profile/payment-sources': (context) =>
+            const PaymentSourcesManagementScreen(),
+        '/profile/spent-types': (context) => const SpentTypesManagementScreen(),
       },
     );
   }

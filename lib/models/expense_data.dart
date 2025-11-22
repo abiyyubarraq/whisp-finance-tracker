@@ -1,30 +1,40 @@
+import 'expense_item.dart';
+
 class ExpenseData {
   final DateTime spentAt;
   final String spentPlace;
-  final String desc;
-  final double value;
+  final String? desc; // Optional transaction description
+  final List<ExpenseItem> items;
+  final double totalValue;
   final String paymentSource;
-  final String spentType;
   final String confidence;
 
   ExpenseData({
     required this.spentAt,
     required this.spentPlace,
-    required this.desc,
-    required this.value,
+    this.desc,
+    required this.items,
+    required this.totalValue,
     required this.paymentSource,
-    required this.spentType,
     required this.confidence,
   });
 
   factory ExpenseData.fromJson(Map<String, dynamic> json) {
+    // Parse items array
+    List<ExpenseItem> itemsList = [];
+    if (json['items'] != null && json['items'] is List) {
+      itemsList = (json['items'] as List)
+          .map((item) => ExpenseItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
     return ExpenseData(
       spentAt: _parseDateTime(json['spentAt']),
       spentPlace: json['spentPlace'] ?? '',
-      desc: json['desc'] ?? '',
-      value: _parseDouble(json['value']),
+      desc: json['desc'],
+      items: itemsList,
+      totalValue: _parseDouble(json['totalValue']),
       paymentSource: json['paymentSource'] ?? '',
-      spentType: json['spentType'] ?? 'other',
       confidence: json['confidence'] ?? 'low',
     );
   }
@@ -36,6 +46,9 @@ class ExpenseData {
       } catch (e) {
         return DateTime.now();
       }
+    }
+    if (value is DateTime) {
+      return value;
     }
     return DateTime.now();
   }

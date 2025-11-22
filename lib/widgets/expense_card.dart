@@ -44,7 +44,9 @@ class ExpenseCard extends StatelessWidget {
                         boxShadow: [
                           BoxShadow(
                             color: _getCategoryColor(
-                              expense.spentType,
+                              expense.items.isNotEmpty
+                                  ? expense.items.first.spentType
+                                  : 'other',
                             ).withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: Offset(0, 4),
@@ -52,7 +54,11 @@ class ExpenseCard extends StatelessWidget {
                         ],
                       ),
                       child: Icon(
-                        _getCategoryIcon(expense.spentType),
+                        _getCategoryIcon(
+                          expense.items.isNotEmpty
+                              ? expense.items.first.spentType
+                              : 'other',
+                        ),
                         color: Colors.white,
                         size: 24,
                       ),
@@ -100,7 +106,10 @@ class ExpenseCard extends StatelessWidget {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            expense.desc,
+                            expense.desc ??
+                                (expense.items.isNotEmpty
+                                    ? '${expense.items.length} ${expense.items.length == 1 ? 'item' : 'items'}'
+                                    : 'No description'),
                             style: TextStyle(
                               fontSize: 13,
                               color: Theme.of(
@@ -122,7 +131,7 @@ class ExpenseCard extends StatelessWidget {
                   children: [
                     // Amount
                     Text(
-                      '${expense.currency} ${_formatAmount(expense.value)}',
+                      '${expense.currency} ${_formatAmount(expense.totalValue)}',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -145,12 +154,13 @@ class ExpenseCard extends StatelessWidget {
                 // Tags
                 Row(
                   children: [
-                    _buildTag(
-                      context,
-                      expense.spentType,
-                      _getCategoryColor(expense.spentType),
-                    ),
-                    SizedBox(width: 8),
+                    if (expense.items.isNotEmpty)
+                      _buildTag(
+                        context,
+                        expense.items.first.spentType,
+                        _getCategoryColor(expense.items.first.spentType),
+                      ),
+                    if (expense.items.isNotEmpty) SizedBox(width: 8),
                     _buildTag(
                       context,
                       expense.paymentSource,
@@ -158,6 +168,16 @@ class ExpenseCard extends StatelessWidget {
                         context,
                       ).colorScheme.onSurface.withValues(alpha: 0.3),
                     ),
+                    if (expense.items.length > 1) ...[
+                      SizedBox(width: 8),
+                      _buildTag(
+                        context,
+                        '+${expense.items.length - 1} more',
+                        Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.3),
+                      ),
+                    ],
                   ],
                 ),
               ],

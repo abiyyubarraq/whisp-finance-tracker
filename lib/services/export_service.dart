@@ -17,10 +17,14 @@ class ExportService {
       'Time',
       'Place',
       'Description',
-      'Amount',
+      'Item Name',
+      'Item Category',
+      'Item Quantity',
+      'Item Cost',
+      'Item Value',
+      'Total Amount',
       'Currency',
       'Payment Source',
-      'Category',
       'Input Method',
       'AI Confidence',
     ];
@@ -32,61 +36,95 @@ class ExportService {
       cell.value = TextCellValue(headers[i]);
     }
 
-    // Data rows
-    for (var i = 0; i < expenses.length; i++) {
-      final expense = expenses[i];
-      final rowIndex = i + 1;
-
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
-          .value = TextCellValue(
-        DateFormat('yyyy-MM-dd').format(expense.spentAt),
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
-          .value = TextCellValue(
-        DateFormat('HH:mm').format(expense.spentAt),
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.spentPlace,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.desc,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex))
-          .value = DoubleCellValue(
-        expense.value,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.currency,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.paymentSource,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.spentType,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.inputMethod,
-      );
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex))
-          .value = TextCellValue(
-        expense.aiConfidence,
-      );
+    // Data rows - one row per item
+    int rowIndex = 1;
+    for (var expense in expenses) {
+      if (expense.items.isEmpty) {
+        // If no items, create one row with transaction-level data
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
+            .value = TextCellValue(
+          DateFormat('yyyy-MM-dd').format(expense.spentAt),
+        );
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
+            .value = TextCellValue(
+          DateFormat('HH:mm').format(expense.spentAt),
+        );
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
+            .value = TextCellValue(expense.spentPlace);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
+            .value = TextCellValue(expense.desc ?? '');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex))
+            .value = DoubleCellValue(expense.totalValue);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex))
+            .value = TextCellValue(expense.currency);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex))
+            .value = TextCellValue(expense.paymentSource);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex))
+            .value = TextCellValue(expense.inputMethod);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: rowIndex))
+            .value = TextCellValue(expense.aiConfidence);
+        rowIndex++;
+      } else {
+        // One row per item
+        for (var item in expense.items) {
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
+              .value = TextCellValue(
+            DateFormat('yyyy-MM-dd').format(expense.spentAt),
+          );
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
+              .value = TextCellValue(
+            DateFormat('HH:mm').format(expense.spentAt),
+          );
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
+              .value = TextCellValue(expense.spentPlace);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
+              .value = TextCellValue(expense.desc ?? '');
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex))
+              .value = TextCellValue(item.itemName);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex))
+              .value = TextCellValue(item.spentType);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex))
+              .value = IntCellValue(item.quantity);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex))
+              .value = DoubleCellValue(item.cost);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex))
+              .value = DoubleCellValue(item.value);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex))
+              .value = DoubleCellValue(expense.totalValue);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex))
+              .value = TextCellValue(expense.currency);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex))
+              .value = TextCellValue(expense.paymentSource);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex))
+              .value = TextCellValue(expense.inputMethod);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: rowIndex))
+              .value = TextCellValue(expense.aiConfidence);
+          rowIndex++;
+        }
+      }
     }
 
     // Add summary sheet
@@ -102,7 +140,7 @@ class ExportService {
       'Total Amount',
     );
     summarySheet.cell(CellIndex.indexByString('B2')).value = DoubleCellValue(
-      expenses.fold<double>(0, (sum, e) => sum + e.value),
+      expenses.fold<double>(0, (sum, e) => sum + e.totalValue),
     );
 
     if (expenses.isNotEmpty) {
@@ -131,7 +169,7 @@ class ExportService {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         build: (pw.Context context) {
-          final total = expenses.fold<double>(0, (sum, e) => sum + e.value);
+          final total = expenses.fold<double>(0, (sum, e) => sum + e.totalValue);
           final avgPerDay = expenses.isNotEmpty
               ? total /
                     (expenses.last.spentAt
@@ -218,16 +256,18 @@ class ExportService {
               ),
               pw.SizedBox(height: 16),
               pw.TableHelper.fromTextArray(
-                headers: ['Date', 'Place', 'Description', 'Amount', 'Category'],
+                headers: ['Date', 'Place', 'Description', 'Items', 'Amount', 'Categories'],
                 data: expenses.map((expense) {
+                  final desc = expense.desc ?? '';
+                  final descText = desc.length > 30 ? '${desc.substring(0, 30)}...' : desc;
+                  final categories = expense.getSpentTypes().join(', ');
                   return [
                     DateFormat('MMM dd').format(expense.spentAt),
                     expense.spentPlace,
-                    expense.desc.length > 30
-                        ? '${expense.desc.substring(0, 30)}...'
-                        : expense.desc,
-                    '${expense.currency} ${expense.value.toStringAsFixed(0)}',
-                    expense.spentType,
+                    descText,
+                    '${expense.items.length}',
+                    '${expense.currency} ${expense.totalValue.toStringAsFixed(0)}',
+                    categories,
                   ];
                 }).toList(),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -284,8 +324,10 @@ class ExportService {
   Map<String, double> _getCategoryBreakdown(List<Expense> expenses) {
     final breakdown = <String, double>{};
     for (var expense in expenses) {
-      breakdown[expense.spentType] =
-          (breakdown[expense.spentType] ?? 0) + expense.value;
+      for (var item in expense.items) {
+        breakdown[item.spentType] =
+            (breakdown[item.spentType] ?? 0) + item.value;
+      }
     }
     return breakdown;
   }

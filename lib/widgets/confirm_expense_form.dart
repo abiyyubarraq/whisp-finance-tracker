@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import '../providers/auth_provider.dart';
 import '../models/expense.dart';
 import '../models/expense_data.dart';
+import '../models/expense_item.dart';
 import '../services/budget_service.dart';
 import '../widgets/glass_container.dart';
 import '../config/theme.dart';
@@ -45,13 +46,21 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
     _spentPlaceController = TextEditingController(
       text: widget.initialData.spentPlace,
     );
-    _descController = TextEditingController(text: widget.initialData.desc);
+    _descController = TextEditingController(text: widget.initialData.desc ?? '');
+    // Calculate total from items
+    final totalValue = widget.initialData.items.fold<double>(
+      0,
+      (sum, item) => sum + item.value,
+    );
     _valueController = TextEditingController(
-      text: widget.initialData.value.toString(),
+      text: totalValue.toString(),
     );
     _spentAt = widget.initialData.spentAt;
     _paymentSource = widget.initialData.paymentSource;
-    _spentType = widget.initialData.spentType;
+    // Use first item's spentType as default, or 'other' if no items
+    _spentType = widget.initialData.items.isNotEmpty
+        ? widget.initialData.items.first.spentType
+        : 'other';
   }
 
   @override
@@ -305,15 +314,30 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
         imageUrl = await storageRef.getDownloadURL();
       }
 
+      // Use items from initialData, or create a single item if empty
+      List<ExpenseItem> items = widget.initialData.items;
+      if (items.isEmpty) {
+        // Create a single item from the form data
+        items = [
+          ExpenseItem(
+            itemName: _descController.text.isEmpty ? 'Expense' : _descController.text,
+            spentType: _spentType,
+            quantity: 1,
+            cost: double.parse(_valueController.text),
+            value: double.parse(_valueController.text),
+          ),
+        ];
+      }
+
       final expense = Expense(
         id: '',
         createdAt: DateTime.now(),
         spentAt: _spentAt,
         spentPlace: _spentPlaceController.text,
-        desc: _descController.text,
-        value: double.parse(_valueController.text),
+        desc: _descController.text.isEmpty ? null : _descController.text,
+        items: items,
+        totalValue: Expense.calculateTotalValue(items),
         paymentSource: _paymentSource.isEmpty ? 'Cash' : _paymentSource,
-        spentType: _spentType,
         currency: _currency,
         inputMethod: widget.imageFile != null ? 'image' : 'voice',
         imageUrl: imageUrl,

@@ -1,11 +1,18 @@
+// lib/screens/input_tabs/manual_input_tab.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../models/expense.dart';
-import '../../../widgets/glass_container.dart';
-import '../../../config/theme.dart';
+import '../../providers/auth_provider.dart';
+import '../../models/expense.dart';
+import '../../models/expense_item.dart';
+import '../../widgets/glass_container.dart';
+import '../../config/theme.dart';
+import '../../widgets/manual_input/expense_item_form.dart';
+import '../../widgets/manual_input/expense_item_card.dart';
+import '../../widgets/manual_input/payment_source_dropdown.dart';
+import '../../widgets/manual_input/date_time_picker_field.dart';
+import '../../services/budget_service.dart';
 
 class ManualInputTab extends ConsumerStatefulWidget {
   const ManualInputTab({super.key});
@@ -18,24 +25,22 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   final _formKey = GlobalKey<FormState>();
   final _spentPlaceController = TextEditingController();
   final _descController = TextEditingController();
-  final _valueController = TextEditingController();
 
   DateTime _spentAt = DateTime.now();
   String _currency = 'IDR';
   String? _selectedPaymentSource;
-  String? _selectedSpentType;
+  List<ExpenseItem> _items = [];
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _spentPlaceController.dispose();
     _descController.dispose();
-    _valueController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
@@ -45,382 +50,374 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Enter Expense Details',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+            _buildHeader(),
             SizedBox(height: 24),
-            _buildDateTimePicker(),
-            SizedBox(height: 16),
-            GlassContainer(
-              padding: EdgeInsets.zero,
-              child: TextFormField(
-                controller: _spentPlaceController,
-                decoration: InputDecoration(
-                  hintText: 'Place/Vendor (e.g., Starbucks, Walmart)',
-                  prefixIcon: Icon(Icons.store_rounded, size: 20),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a place';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            SizedBox(height: 16),
-            GlassContainer(
-              padding: EdgeInsets.zero,
-              child: TextFormField(
-                controller: _descController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Description (What did you buy?)',
-                  prefixIcon: Icon(Icons.description_rounded, size: 20),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: GlassContainer(
-                    padding: EdgeInsets.zero,
-                    child: TextFormField(
-                      controller: _valueController,
-                      keyboardType: TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Amount',
-                        prefixIcon: Icon(Icons.money, size: 20),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Enter amount';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return 'Invalid amount';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: GlassContainer(
-                    padding: EdgeInsets.zero,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _currency,
-                      decoration: InputDecoration(
-                        hintText: 'Currency',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                      ),
-                      items: ['IDR', 'USD'].map((currency) {
-                        return DropdownMenuItem(
-                          value: currency,
-                          child: Text(currency),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _currency = value!);
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user?.uid)
-                  .collection('paymentSources')
-                  .where('isActive', isEqualTo: true)
-                  .orderBy('order')
-                  .snapshots()
-                  .handleError((error, stackTrace) {
-                    debugPrint('Error fetching payment sources: $error');
-                    debugPrint('Stack trace: $stackTrace');
-                    // Re-throw to let StreamBuilder handle it
-                    throw error;
-                  }),
-              builder: (context, snapshot) {
-                // Handle error state
-                if (snapshot.hasError) {
-                  debugPrint(
-                    'StreamBuilder error for payment sources: ${snapshot.error}',
-                  );
-                  return _buildErrorState('payment sources');
-                }
-
-                // Handle loading state
-                if (snapshot.connectionState == ConnectionState.waiting ||
-                    !snapshot.hasData) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                final sources = snapshot.data!.docs;
-
-                return GlassContainer(
-                  padding: EdgeInsets.zero,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentSource,
-                    decoration: InputDecoration(
-                      hintText: 'Payment Source',
-                      prefixIcon: Icon(Icons.payment_rounded, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                    ),
-                    items: sources.map((doc) {
-                      return DropdownMenuItem<String>(
-                        value: doc['name'] as String,
-                        child: Text(doc['name'] as String),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedPaymentSource = value);
-                    },
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Please select a payment source';
-                      }
-                      return null;
-                    },
-                  ),
-                );
-              },
-            ),
-            SizedBox(height: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user?.uid)
-                  .collection('spentTypes')
-                  .where('isActive', isEqualTo: true)
-                  .orderBy('order')
-                  .snapshots()
-                  .handleError((error, stackTrace) {
-                    debugPrint('Error fetching spent types: $error');
-                    debugPrint('Stack trace: $stackTrace');
-                    // Re-throw to let StreamBuilder handle it
-                    throw error;
-                  }),
-              builder: (context, snapshot) {
-                // Handle error state
-                if (snapshot.hasError) {
-                  debugPrint(
-                    'StreamBuilder error for spent types: ${snapshot.error}',
-                  );
-                  return _buildErrorState('spent types');
-                }
-
-                // Handle loading state
-                if (snapshot.connectionState == ConnectionState.waiting ||
-                    !snapshot.hasData) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                final types = snapshot.data!.docs;
-
-                return GlassContainer(
-                  padding: EdgeInsets.zero,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedSpentType,
-                    decoration: InputDecoration(
-                      hintText: 'Category',
-                      prefixIcon: Icon(Icons.category_rounded, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                    ),
-                    items: types.map((doc) {
-                      return DropdownMenuItem<String>(
-                        value: doc['name'] as String,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: Color(
-                                  int.parse(
-                                        (doc['color'] as String).substring(1),
-                                        radix: 16,
-                                      ) +
-                                      0xFF000000,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text(doc['name'] as String),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedSpentType = value);
-                    },
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Please select a category';
-                      }
-                      return null;
-                    },
-                  ),
-                );
-              },
-            ),
+            _buildBasicInfo(),
+            SizedBox(height: 24),
+            _buildItemsSection(),
+            SizedBox(height: 24),
+            _buildTotalSummary(),
             SizedBox(height: 32),
-            Container(
-              width: double.infinity,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? AppTheme.gradientDark
-                      : AppTheme.gradientLight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryLight.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    offset: Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _saveExpense,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Center(
-                    child: Text(
-                      'Save Expense',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            _buildSaveButton(isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildErrorState(String errorType) {
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Enter Expense Details',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        if (_items.isNotEmpty)
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${_items.length} ${_items.length == 1 ? 'item' : 'items'}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBasicInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DateTimePickerField(
+          selectedDateTime: _spentAt,
+          onDateTimeChanged: (dateTime) {
+            setState(() => _spentAt = dateTime);
+          },
+        ),
+        SizedBox(height: 16),
+        GlassContainer(
+          padding: EdgeInsets.zero,
+          child: TextFormField(
+            controller: _spentPlaceController,
+            decoration: InputDecoration(
+              hintText: 'Place/Vendor (e.g., Starbucks, Walmart)',
+              prefixIcon: Icon(Icons.store_rounded, size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a place';
+              }
+              return null;
+            },
+          ),
+        ),
+        SizedBox(height: 16),
+        GlassContainer(
+          padding: EdgeInsets.zero,
+          child: TextFormField(
+            controller: _descController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Transaction description (optional)',
+              prefixIcon: Icon(Icons.description_rounded, size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: PaymentSourceDropdown(
+                selectedPaymentSource: _selectedPaymentSource,
+                onChanged: (value) {
+                  setState(() => _selectedPaymentSource = value);
+                },
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: GlassContainer(
+                padding: EdgeInsets.zero,
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: _currency,
+                  decoration: InputDecoration(
+                    hintText: 'Currency',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                  ),
+                  items: ['IDR', 'USD', 'EUR', 'GBP', 'JPY'].map((currency) {
+                    return DropdownMenuItem(
+                      value: currency,
+                      child: Text(currency),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _currency = value!);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Items',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            TextButton.icon(
+              onPressed: _showAddItemDialog,
+              icon: Icon(Icons.add_rounded, size: 18),
+              label: Text('Add Item'),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        if (_items.isEmpty)
+          GlassContainer(
+            padding: EdgeInsets.all(20),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 48,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'No items added yet',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Tap "Add Item" to start',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Column(
+            children: _items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: ExpenseItemCard(
+                  item: item,
+                  currency: _currency,
+                  onEdit: () => _showEditItemDialog(index, item),
+                  onDelete: () => _deleteItem(index),
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTotalSummary() {
+    final totalValue = Expense.calculateTotalValue(_items);
+    final totalQuantity = _items.fold(0, (sum, item) => sum + item.quantity);
+    final totalTax = _items.fold(0.0, (sum, item) => sum + (item.tax ?? 0));
+
     return GlassContainer(
       padding: EdgeInsets.all(16),
-      child: Row(
+      child: Column(
         children: [
-          Icon(Icons.error_outline, color: Colors.red, size: 20),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Failed to load $errorType',
-              style: TextStyle(fontSize: 14, color: Colors.red),
+          _buildSummaryRow('Items', '${_items.length}'),
+          SizedBox(height: 8),
+          _buildSummaryRow('Quantity', '$totalQuantity'),
+          if (totalTax > 0) ...[
+            SizedBox(height: 8),
+            _buildSummaryRow(
+              'Tax',
+              '${NumberFormat.currency(symbol: _currency, decimalDigits: 0).format(totalTax)}',
             ),
+          ],
+          Divider(height: 24),
+          _buildSummaryRow(
+            'Total',
+            NumberFormat.currency(
+              symbol: _currency,
+              decimalDigits: 0,
+            ).format(totalValue),
+            isTotal: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDateTimePicker() {
-    return GlassContainer(
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () async {
-          final date = await showDatePicker(
-            context: context,
-            initialDate: _spentAt,
-            firstDate: DateTime(2020),
-            lastDate: DateTime.now(),
-          );
-
-          if (date != null) {
-            final time = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.fromDateTime(_spentAt),
-            );
-
-            if (time != null) {
-              setState(() {
-                _spentAt = DateTime(
-                  date.year,
-                  date.month,
-                  date.day,
-                  time.hour,
-                  time.minute,
-                );
-              });
-            }
-          }
-        },
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Icon(Icons.calendar_today_rounded, size: 20),
-              SizedBox(width: 12),
-              Text(
-                DateFormat('MMM dd, yyyy - HH:mm').format(_spentAt),
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-              ),
-            ],
+  Widget _buildSummaryRow(String label, String value, {bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTotal ? 16 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: isTotal
+                ? null
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isTotal ? 18 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSaveButton(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark ? AppTheme.gradientDark : AppTheme.gradientLight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryLight.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isLoading ? null : _saveExpense,
+          borderRadius: BorderRadius.circular(16),
+          child: Center(
+            child: _isLoading
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    'Save Expense',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddItemDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ExpenseItemForm(
+        onSave: (item) {
+          setState(() => _items.add(item));
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  void _showEditItemDialog(int index, ExpenseItem item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ExpenseItemForm(
+        item: item,
+        onSave: (updatedItem) {
+          setState(() => _items[index] = updatedItem);
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  void _deleteItem(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Item'),
+        content: Text('Are you sure you want to delete this item?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() => _items.removeAt(index));
+              Navigator.pop(context);
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
@@ -428,19 +425,46 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   Future<void> _saveExpense() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please add at least one item'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedPaymentSource == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a payment source'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     final user = ref.read(authStateProvider).value;
-    if (user == null) return;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       final expense = Expense(
         id: '',
         createdAt: DateTime.now(),
         spentAt: _spentAt,
-        spentPlace: _spentPlaceController.text,
-        desc: _descController.text,
-        value: double.parse(_valueController.text),
+        spentPlace: _spentPlaceController.text.trim(),
+        desc: _descController.text.trim().isEmpty
+            ? null
+            : _descController.text.trim(),
+        items: _items,
+        totalValue: Expense.calculateTotalValue(_items),
         paymentSource: _selectedPaymentSource!,
-        spentType: _selectedSpentType!,
         currency: _currency,
         inputMethod: 'manual',
         aiConfidence: 'manual',
@@ -452,10 +476,17 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
           .collection('expenses')
           .add(expense.toFirestore());
 
+      // Check budget alerts
+      final budgetService = BudgetService();
+      await budgetService.checkBudgetAlerts(user.uid);
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense saved successfully')),
+          SnackBar(
+            content: Text('Expense saved successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
@@ -466,6 +497,10 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }

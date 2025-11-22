@@ -150,7 +150,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   }
 
   Widget _buildSummaryCard(BuildContext context, List<Expense> expenses) {
-    final total = expenses.fold<double>(0, (sum, e) => sum + e.value);
+    final total = expenses.fold<double>(0, (sum, e) => sum + e.totalValue);
     final thisMonth = expenses.where((e) {
       final now = DateTime.now();
       return e.spentAt.month == now.month && e.spentAt.year == now.year;
@@ -312,9 +312,11 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         return false;
       }
 
-      if (_filter.selectedSpentTypes.isNotEmpty &&
-          !_filter.selectedSpentTypes.contains(expense.spentType)) {
-        return false;
+      if (_filter.selectedSpentTypes.isNotEmpty) {
+        final expenseSpentTypes = expense.getSpentTypes();
+        if (!expenseSpentTypes.any((type) => _filter.selectedSpentTypes.contains(type))) {
+          return false;
+        }
       }
 
       if (_filter.selectedPaymentSources.isNotEmpty &&
@@ -339,13 +341,15 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           comparison = a.spentAt.compareTo(b.spentAt);
           break;
         case SortField.value:
-          comparison = a.value.compareTo(b.value);
+          comparison = a.totalValue.compareTo(b.totalValue);
           break;
         case SortField.spentPlace:
           comparison = a.spentPlace.compareTo(b.spentPlace);
           break;
         case SortField.spentType:
-          comparison = a.spentType.compareTo(b.spentType);
+          final aTypes = a.getSpentTypes().join(',');
+          final bTypes = b.getSpentTypes().join(',');
+          comparison = aTypes.compareTo(bTypes);
           break;
         case SortField.paymentSource:
           comparison = a.paymentSource.compareTo(b.paymentSource);
@@ -460,15 +464,22 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(expense.spentPlace),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Amount: ${expense.currency} ${expense.value}'),
-            Text('Description: ${expense.desc}'),
-            Text('Category: ${expense.spentType}'),
-            Text('Payment: ${expense.paymentSource}'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Amount: ${expense.currency} ${expense.totalValue}'),
+              if (expense.desc != null && expense.desc!.isNotEmpty)
+                Text('Description: ${expense.desc}'),
+              Text('Items: ${expense.items.length}'),
+              ...expense.items.map((item) => Padding(
+                    padding: EdgeInsets.only(left: 16, top: 4),
+                    child: Text('  • ${item.itemName} (${item.spentType}): ${expense.currency} ${item.value}'),
+                  )),
+              Text('Payment: ${expense.paymentSource}'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
