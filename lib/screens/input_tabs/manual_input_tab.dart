@@ -134,6 +134,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
                   child: GlassContainer(
                     padding: EdgeInsets.zero,
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _currency,
                       decoration: InputDecoration(
                         hintText: 'Currency',
