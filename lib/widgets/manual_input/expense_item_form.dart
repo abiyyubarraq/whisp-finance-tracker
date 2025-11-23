@@ -164,7 +164,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                         keyboardType: TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        inputFormatters: [DecimalTextInputFormatter()],
+                        inputFormatters: [ThousandMultiplierFormatter()],
                         decoration: InputDecoration(
                           hintText: 'Cost per unit',
                           prefixIcon: Icon(Icons.onetwothree_rounded, size: 20),
@@ -194,9 +194,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                 child: TextFormField(
                   controller: _taxController,
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
+                  inputFormatters: [ThousandMultiplierFormatter()],
                   decoration: InputDecoration(
                     hintText: 'Tax (optional)',
                     prefixIcon: Icon(Icons.receipt_rounded, size: 20),

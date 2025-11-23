@@ -287,7 +287,7 @@ class ColorHelper {
   /// Opacity should be between 0.0 (transparent) and 1.0 (opaque)
   static Color withOpacity(Color color, double opacity) {
     assert(opacity >= 0 && opacity <= 1, 'Opacity must be between 0 and 1');
-    return color.withOpacity(opacity);
+    return color.withValues(alpha: opacity);
   }
 
   /// Generate a random color from predefined colors

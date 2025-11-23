@@ -1,19 +1,37 @@
+// lib/utils/filter_sort.dart (Updated)
 import 'package:flutter/material.dart';
 
 class ExpenseFilter {
   DateTimeRange? dateRange;
-  List<String> selectedSpentTypes;
-  List<String> selectedPaymentSources;
-  String? currencyFilter; // IDR, USD, or null (all)
-  bool showOnlyFlagged; // Show only low-confidence entries
+  String? currencyFilter;
+  Set<String> selectedSpentTypes = {};
+  Set<String> selectedPaymentSources = {};
+  bool showOnlyFlagged = false;
+  double? minAmount;
+  double? maxAmount;
 
   ExpenseFilter({
     this.dateRange,
-    this.selectedSpentTypes = const [],
-    this.selectedPaymentSources = const [],
     this.currencyFilter,
+    Set<String>? selectedSpentTypes,
+    Set<String>? selectedPaymentSources,
     this.showOnlyFlagged = false,
-  });
+    this.minAmount,
+    this.maxAmount,
+  }) {
+    this.selectedSpentTypes = selectedSpentTypes ?? {};
+    this.selectedPaymentSources = selectedPaymentSources ?? {};
+  }
+
+  bool hasActiveFilters() {
+    return dateRange != null ||
+        currencyFilter != null ||
+        selectedSpentTypes.isNotEmpty ||
+        selectedPaymentSources.isNotEmpty ||
+        showOnlyFlagged ||
+        minAmount != null ||
+        maxAmount != null;
+  }
 }
 
 enum SortField { spentAt, value, spentPlace, spentType, paymentSource }

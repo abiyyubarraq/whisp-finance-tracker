@@ -51,7 +51,7 @@ class ExpenseItemCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Theme.of(
                               context,
-                            ).colorScheme.primary.withOpacity(0.1),
+                            ).colorScheme.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -72,7 +72,7 @@ class ExpenseItemCard extends StatelessWidget {
                                 fontSize: 12,
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onSurface.withOpacity(0.6),
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -92,7 +92,7 @@ class ExpenseItemCard extends StatelessWidget {
                     onPressed: onEdit,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.6),
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                     padding: EdgeInsets.all(8),
                     constraints: BoxConstraints(),
                   ),
@@ -116,16 +116,34 @@ class ExpenseItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Quantity × Cost',
+                    'Qty',
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5),
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                   Text(
-                    '${item.quantity} × ${formatter.format(item.cost)}',
+                    '${item.quantity}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cost',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  Text(
+                    formatter.format(item.cost),
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -140,7 +158,7 @@ class ExpenseItemCard extends StatelessWidget {
                         fontSize: 11,
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.5),
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                     Text(
@@ -161,7 +179,7 @@ class ExpenseItemCard extends StatelessWidget {
                       fontSize: 11,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5),
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                   Text(

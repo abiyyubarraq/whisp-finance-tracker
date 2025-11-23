@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/expense.dart';
-import '../config/theme.dart';
-import 'glass_container.dart';
+import '../../models/expense.dart';
+import '../../config/theme.dart';
+import '../glass_container.dart';
 
 class ExpenseCard extends StatelessWidget {
   final Expense expense;

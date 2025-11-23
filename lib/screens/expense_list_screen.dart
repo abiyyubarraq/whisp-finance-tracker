@@ -1,13 +1,19 @@
+// lib/screens/expense_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../models/expense.dart';
-import '../widgets/expense_card.dart';
+import '../widgets/expense_list/expense_card.dart';
 import '../widgets/modern_app_bar.dart';
-import '../widgets/glass_container.dart';
 import '../config/theme.dart';
 import '../utils/filter_sort.dart';
+import '../widgets/expense_list/expense_summary_card.dart';
+import '../widgets/expense_list/sort_sheet.dart';
+import '../widgets/expense_list/expense_details_dialog.dart';
+import '../widgets/common/empty_state.dart';
+import '../widgets/common/error_state.dart';
+import '../widgets/expense_list/filter_sheet.dart';
 
 class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
@@ -34,48 +40,30 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         preferredSize: Size.fromHeight(80),
         child: ModernAppBar(
           title: 'Expenses',
-          actions: [
-            SizedBox(width: 8),
-            _buildActionButton(
-              context,
-              icon: Icons.filter_list_rounded,
-              onTap: _showFilterSheet,
-            ),
-            SizedBox(width: 8),
-            _buildActionButton(
-              context,
-              icon: Icons.sort_rounded,
-              onTap: _showSortSheet,
-            ),
-            SizedBox(width: 8),
-            _buildActionButton(
-              context,
-              icon: Icons.person_rounded,
-              onTap: () => Navigator.pushNamed(context, '/profile'),
-            ),
-          ],
+          actions: _buildAppBarActions(context),
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _getExpensesStream(user.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(
-                  Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            );
+            return _buildLoadingState();
           }
 
           if (snapshot.hasError) {
             debugPrint('StreamBuilder error for expenses: ${snapshot.error}');
-            return _buildErrorState(context);
+            return ErrorState(
+              message: 'Failed to load expenses',
+              onRetry: () => setState(() {}),
+            );
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(context);
+            return EmptyState(
+              icon: Icons.receipt_long_rounded,
+              title: 'No expenses yet',
+              message: 'Start tracking your expenses by tapping the + button',
+            );
           }
 
           final expenses = snapshot.data!.docs
@@ -85,201 +73,138 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           final filteredExpenses = _applyFilters(expenses);
           final sortedExpenses = _applySorting(filteredExpenses);
 
-          return Column(
-            children: [
-              // Summary card
-              _buildSummaryCard(context, sortedExpenses),
-              SizedBox(height: 16),
-              // Expense list
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() {});
-                  },
-                  color: Theme.of(context).colorScheme.primary,
-                  child: ListView.builder(
-                    padding: EdgeInsets.only(bottom: 100),
-                    itemCount: sortedExpenses.length,
-                    itemBuilder: (context, index) {
-                      return ExpenseCard(
-                        expense: sortedExpenses[index],
-                        onTap: () => _showExpenseDetails(sortedExpenses[index]),
-                      );
-                    },
-                  ),
-                ),
+          if (sortedExpenses.isEmpty) {
+            return EmptyState(
+              icon: Icons.filter_list_off_rounded,
+              title: 'No matching expenses',
+              message: 'Try adjusting your filters',
+              action: TextButton(
+                onPressed: () {
+                  setState(() => _filter = ExpenseFilter());
+                },
+                child: Text('Clear Filters'),
               ),
-            ],
-          );
+            );
+          }
+
+          return _buildExpensesList(sortedExpenses);
         },
       ),
     );
+  }
+
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    return [
+      SizedBox(width: 8),
+      _buildActionButton(
+        context,
+        icon: Icons.filter_list_rounded,
+        onTap: _showFilterSheet,
+        hasActiveFilter: _filter.hasActiveFilters(),
+      ),
+      SizedBox(width: 8),
+      _buildActionButton(
+        context,
+        icon: Icons.sort_rounded,
+        onTap: _showSortSheet,
+      ),
+      SizedBox(width: 8),
+      _buildActionButton(
+        context,
+        icon: Icons.person_rounded,
+        onTap: () => Navigator.pushNamed(context, '/profile'),
+      ),
+    ];
   }
 
   Widget _buildActionButton(
     BuildContext context, {
     required IconData icon,
     required VoidCallback onTap,
+    bool hasActiveFilter = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark ? AppTheme.gradientDark : AppTheme.gradientLight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryLight.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: Offset(0, 4),
+
+    return Stack(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark ? AppTheme.gradientDark : AppTheme.gradientLight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(BuildContext context, List<Expense> expenses) {
-    final total = expenses.fold<double>(0, (sum, e) => sum + e.totalValue);
-    final thisMonth = expenses.where((e) {
-      final now = DateTime.now();
-      return e.spentAt.month == now.month && e.spentAt.year == now.year;
-    }).length;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: GradientGlassContainer(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Spending',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'IDR ${_formatAmount(total)}',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.trending_up_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMiniStat(
-                    'This Month',
-                    '$thisMonth transactions',
-                    Icons.calendar_today_rounded,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: _buildMiniStat(
-                    'Average',
-                    'IDR ${_formatAmount(expenses.isEmpty ? 0 : total / expenses.length)}',
-                    Icons.analytics_rounded,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniStat(String label, String value, IconData icon) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Icon(icon, color: Colors.white, size: 20),
             ),
           ),
-        ],
+        ),
+        if (hasActiveFilter)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation(
+          Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }
 
-  String _formatAmount(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
-    }
-    return amount.toStringAsFixed(0);
+  Widget _buildExpensesList(List<Expense> expenses) {
+    return Column(
+      children: [
+        ExpenseSummaryCard(expenses: expenses),
+        SizedBox(height: 16),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              setState(() {});
+            },
+            color: Theme.of(context).colorScheme.primary,
+            child: ListView.builder(
+              padding: EdgeInsets.only(bottom: 100),
+              itemCount: expenses.length,
+              itemBuilder: (context, index) {
+                return ExpenseCard(
+                  expense: expenses[index],
+                  onTap: () => _showExpenseDetails(expenses[index]),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Stream<QuerySnapshot> _getExpensesStream(String userId) {
@@ -313,8 +238,12 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       }
 
       if (_filter.selectedSpentTypes.isNotEmpty) {
-        final expenseSpentTypes = expense.getSpentTypes();
-        if (!expenseSpentTypes.any((type) => _filter.selectedSpentTypes.contains(type))) {
+        final expenseSpentTypes = expense.items
+            .map((item) => item.spentType)
+            .toSet();
+        if (!expenseSpentTypes.any(
+          (type) => _filter.selectedSpentTypes.contains(type),
+        )) {
           return false;
         }
       }
@@ -325,6 +254,16 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       }
 
       if (_filter.showOnlyFlagged && expense.aiConfidence != 'low') {
+        return false;
+      }
+
+      if (_filter.minAmount != null &&
+          expense.totalValue < _filter.minAmount!) {
+        return false;
+      }
+
+      if (_filter.maxAmount != null &&
+          expense.totalValue > _filter.maxAmount!) {
         return false;
       }
 
@@ -347,8 +286,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           comparison = a.spentPlace.compareTo(b.spentPlace);
           break;
         case SortField.spentType:
-          final aTypes = a.getSpentTypes().join(',');
-          final bTypes = b.getSpentTypes().join(',');
+          final aTypes = a.items.map((item) => item.spentType).join(',');
+          final bTypes = b.items.map((item) => item.spentType).join(',');
           comparison = aTypes.compareTo(bTypes);
           break;
         case SortField.paymentSource:
@@ -369,41 +308,16 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Filter Expenses',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _filter = ExpenseFilter();
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Clear Filters'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Apply'),
-            ),
-          ],
-        ),
+      builder: (context) => FilterSheet(
+        currentFilter: _filter,
+        onApply: (newFilter) {
+          setState(() => _filter = newFilter);
+          Navigator.pop(context);
+        },
+        onClear: () {
+          setState(() => _filter = ExpenseFilter());
+          Navigator.pop(context);
+        },
       ),
     );
   }
@@ -411,50 +325,14 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   void _showSortSheet() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Sort Expenses',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              title: const Text('Date'),
-              onTap: () {
-                setState(() {
-                  _sort = ExpenseSort(
-                    SortField.spentAt,
-                    SortDirection.descending,
-                  );
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('Amount'),
-              onTap: () {
-                setState(() {
-                  _sort = ExpenseSort(
-                    SortField.value,
-                    SortDirection.descending,
-                  );
-                });
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
+      builder: (context) => SortSheet(
+        currentSort: _sort,
+        onApply: (newSort) {
+          setState(() => _sort = newSort);
+          Navigator.pop(context);
+        },
       ),
     );
   }
@@ -462,112 +340,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   void _showExpenseDetails(Expense expense) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(expense.spentPlace),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Amount: ${expense.currency} ${expense.totalValue}'),
-              if (expense.desc != null && expense.desc!.isNotEmpty)
-                Text('Description: ${expense.desc}'),
-              Text('Items: ${expense.items.length}'),
-              ...expense.items.map((item) => Padding(
-                    padding: EdgeInsets.only(left: 16, top: 4),
-                    child: Text('  • ${item.itemName} (${item.spentType}): ${expense.currency} ${item.value}'),
-                  )),
-              Text('Payment: ${expense.paymentSource}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark ? AppTheme.gradientDark : AppTheme.gradientLight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.receipt_long_rounded,
-              size: 60,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'No expenses yet',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          SizedBox(height: 8),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 60),
-            child: Text(
-              'Start tracking your expenses by tapping the + button',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(BuildContext context) {
-    return Center(
-      child: GlassContainer(
-        margin: EdgeInsets.all(40),
-        padding: EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 60, color: Colors.red),
-            SizedBox(height: 16),
-            Text(
-              'Something went wrong',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Please try again later',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (context) => ExpenseDetailsDialog(expense: expense),
     );
   }
 }
