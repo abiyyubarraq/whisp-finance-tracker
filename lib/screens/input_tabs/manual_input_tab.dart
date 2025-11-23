@@ -29,7 +29,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   DateTime _spentAt = DateTime.now();
   String _currency = 'IDR';
   String? _selectedPaymentSource;
-  List<ExpenseItem> _items = [];
+  final List<ExpenseItem> _items = [];
   bool _isLoading = false;
 
   @override
@@ -162,7 +162,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
                 padding: EdgeInsets.zero,
                 child: DropdownButtonFormField<String>(
                   isExpanded: true,
-                  value: _currency,
+                  initialValue: _currency,
                   decoration: InputDecoration(
                     hintText: 'Currency',
                     border: InputBorder.none,
@@ -280,7 +280,10 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
             SizedBox(height: 8),
             _buildSummaryRow(
               'Tax',
-              '${NumberFormat.currency(symbol: _currency, decimalDigits: 0).format(totalTax)}',
+              NumberFormat.currency(
+                symbol: _currency,
+                decimalDigits: 0,
+              ).format(totalTax),
             ),
           ],
           Divider(height: 24),
