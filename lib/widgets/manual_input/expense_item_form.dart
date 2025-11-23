@@ -1,11 +1,12 @@
 // lib/widgets/manual_input/expense_item_form.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/expense_item.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/user_data_provider.dart';
 import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
+import '../../utils/input_helper.dart';
 
 class ExpenseItemForm extends ConsumerStatefulWidget {
   final ExpenseItem? item;
@@ -26,6 +27,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
   late TextEditingController _descController;
 
   String? _selectedSpentType;
+  bool _hasSetDefaultSpentType = false;
 
   @override
   void initState() {
@@ -128,6 +130,9 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                       child: TextFormField(
                         controller: _quantityController,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                        ],
                         decoration: InputDecoration(
                           hintText: 'Qty',
                           prefixIcon: Icon(Icons.numbers_rounded, size: 20),
@@ -159,6 +164,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                         keyboardType: TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                        inputFormatters: [DecimalTextInputFormatter()],
                         decoration: InputDecoration(
                           hintText: 'Cost per unit',
                           prefixIcon: Icon(Icons.onetwothree_rounded, size: 20),
@@ -188,6 +194,9 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                 child: TextFormField(
                   controller: _taxController,
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
                   decoration: InputDecoration(
                     hintText: 'Tax (optional)',
                     prefixIcon: Icon(Icons.receipt_rounded, size: 20),
@@ -225,7 +234,16 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                 ),
               ),
               SizedBox(height: 24),
-              _buildCalculatedTotal(),
+              ValueListenableBuilder(
+                valueListenable: _costController,
+                builder: (context, _, _) => ValueListenableBuilder(
+                  valueListenable: _quantityController,
+                  builder: (context, _, _) => ValueListenableBuilder(
+                    valueListenable: _taxController,
+                    builder: (context, _, _) => _buildCalculatedTotal(),
+                  ),
+                ),
+              ),
               SizedBox(height: 24),
               _buildSaveButton(isDark),
             ],
@@ -236,37 +254,47 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
   }
 
   Widget _buildSpentTypeDropdown() {
-    final user = ref.watch(authStateProvider).value;
+    final spentTypesAsync = ref.watch(activeSpentTypesProvider);
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user?.uid)
-          .collection('spentTypes')
-          .where('isActive', isEqualTo: true)
-          .orderBy('order')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    spentTypesAsync.whenData((types) {
+      if (!_hasSetDefaultSpentType &&
+          _selectedSpentType == null &&
+          types.isNotEmpty &&
+          mounted) {
+        setState(() {
+          _hasSetDefaultSpentType = true;
+          _selectedSpentType = types.first.name;
+        });
+      }
+    });
+
+    ref.listen(activeSpentTypesProvider, (previous, next) {
+      next.whenData((types) {
+        if (!_hasSetDefaultSpentType &&
+            _selectedSpentType == null &&
+            types.isNotEmpty &&
+            mounted) {
+          setState(() {
+            _hasSetDefaultSpentType = true;
+            _selectedSpentType = types.first.name;
+          });
+        }
+      });
+    });
+
+    return spentTypesAsync.when(
+      data: (types) {
+        if (types.isEmpty) {
           return GlassContainer(
             padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
+            child: Text('No categories available'),
           );
         }
-
-        if (snapshot.hasError || !snapshot.hasData) {
-          return GlassContainer(
-            padding: EdgeInsets.all(16),
-            child: Text('Error loading categories'),
-          );
-        }
-
-        final types = snapshot.data!.docs;
 
         return GlassContainer(
           padding: EdgeInsets.zero,
           child: DropdownButtonFormField<String>(
-            initialValue: _selectedSpentType ?? types.first['name'],
+            initialValue: _selectedSpentType,
             decoration: InputDecoration(
               hintText: 'Category',
               prefixIcon: Icon(Icons.category_rounded, size: 20),
@@ -276,14 +304,14 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                 vertical: 16,
               ),
             ),
-            items: types.map((doc) {
-              final colorString = doc['color'] as String;
+            items: types.map((type) {
+              final colorString = type.color;
               final color = Color(
                 int.parse(colorString.substring(1), radix: 16) + 0xFF000000,
               );
 
               return DropdownMenuItem<String>(
-                value: doc['name'] as String,
+                value: type.name,
                 child: Row(
                   children: [
                     Container(
@@ -295,7 +323,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                       ),
                     ),
                     SizedBox(width: 8),
-                    Text(doc['name'] as String),
+                    Text(type.name),
                   ],
                 ),
               );
@@ -310,19 +338,26 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
           ),
         );
       },
+      loading: () => GlassContainer(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => GlassContainer(
+        padding: EdgeInsets.all(16),
+        child: Text('Error loading categories'),
+      ),
     );
   }
 
   Widget _buildCalculatedTotal() {
     final cost = double.tryParse(_costController.text) ?? 0;
     final quantity = int.tryParse(_quantityController.text) ?? 1;
-    final tax = double.tryParse(_taxController.text) ?? 0;
+    final tax = double.tryParse(_taxController.text);
     final total = ExpenseItem.calculateValue(
       cost: cost,
       quantity: quantity,
       tax: tax,
     );
-
     return GlassContainer(
       padding: EdgeInsets.all(16),
       child: Row(

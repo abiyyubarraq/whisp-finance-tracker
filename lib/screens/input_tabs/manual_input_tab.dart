@@ -13,6 +13,7 @@ import '../../widgets/manual_input/expense_item_card.dart';
 import '../../widgets/manual_input/payment_source_dropdown.dart';
 import '../../widgets/manual_input/date_time_picker_field.dart';
 import '../../services/budget_service.dart';
+import '../../providers/user_data_provider.dart';
 
 class ManualInputTab extends ConsumerStatefulWidget {
   const ManualInputTab({super.key});
@@ -31,6 +32,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   String? _selectedPaymentSource;
   final List<ExpenseItem> _items = [];
   bool _isLoading = false;
+  bool _hasSetDefaultPaymentSource = false;
 
   @override
   void dispose() {
@@ -96,96 +98,154 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   }
 
   Widget _buildBasicInfo() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DateTimePickerField(
-          selectedDateTime: _spentAt,
-          onDateTimeChanged: (dateTime) {
-            setState(() => _spentAt = dateTime);
-          },
-        ),
-        SizedBox(height: 16),
-        GlassContainer(
-          padding: EdgeInsets.zero,
-          child: TextFormField(
-            controller: _spentPlaceController,
-            decoration: InputDecoration(
-              hintText: 'Place/Vendor (e.g., Starbucks, Walmart)',
-              prefixIcon: Icon(Icons.store_rounded, size: 20),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a place';
-              }
-              return null;
-            },
-          ),
-        ),
-        SizedBox(height: 16),
-        GlassContainer(
-          padding: EdgeInsets.zero,
-          child: TextFormField(
-            controller: _descController,
-            maxLines: 2,
-            decoration: InputDecoration(
-              hintText: 'Transaction description (optional)',
-              prefixIcon: Icon(Icons.description_rounded, size: 20),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 16),
-        Row(
+    final paymentSourcesAsync = ref.watch(activePaymentSourcesProvider);
+
+    paymentSourcesAsync.whenData((sources) {
+      if (!_hasSetDefaultPaymentSource &&
+          _selectedPaymentSource == null &&
+          sources.isNotEmpty &&
+          mounted) {
+        setState(() {
+          _hasSetDefaultPaymentSource = true;
+          _selectedPaymentSource = sources.first.name;
+        });
+      }
+    });
+
+    ref.listen(activePaymentSourcesProvider, (previous, next) {
+      next.whenData((sources) {
+        if (!_hasSetDefaultPaymentSource &&
+            _selectedPaymentSource == null &&
+            sources.isNotEmpty &&
+            mounted) {
+          setState(() {
+            _hasSetDefaultPaymentSource = true;
+            _selectedPaymentSource = sources.first.name;
+          });
+        }
+      });
+    });
+
+    return paymentSourcesAsync.when(
+      data: (sources) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 2,
-              child: PaymentSourceDropdown(
-                selectedPaymentSource: _selectedPaymentSource,
-                onChanged: (value) {
-                  setState(() => _selectedPaymentSource = value);
+            DateTimePickerField(
+              selectedDateTime: _spentAt,
+              onDateTimeChanged: (dateTime) {
+                setState(() => _spentAt = dateTime);
+              },
+            ),
+            SizedBox(height: 16),
+            GlassContainer(
+              padding: EdgeInsets.zero,
+              child: TextFormField(
+                controller: _spentPlaceController,
+                decoration: InputDecoration(
+                  hintText: 'Place/Vendor (e.g., Starbucks, Walmart)',
+                  prefixIcon: Icon(Icons.store_rounded, size: 20),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a place';
+                  }
+                  return null;
                 },
               ),
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: GlassContainer(
-                padding: EdgeInsets.zero,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _currency,
-                  decoration: InputDecoration(
-                    hintText: 'Currency',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
+            SizedBox(height: 16),
+            GlassContainer(
+              padding: EdgeInsets.zero,
+              child: TextFormField(
+                controller: _descController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Transaction description (optional)',
+                  prefixIcon: Icon(Icons.description_rounded, size: 20),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
                   ),
-                  items: ['IDR', 'USD', 'EUR', 'GBP', 'JPY'].map((currency) {
-                    return DropdownMenuItem(
-                      value: currency,
-                      child: Text(currency),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _currency = value!);
-                  },
                 ),
               ),
             ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: PaymentSourceDropdown(
+                    selectedPaymentSource: _selectedPaymentSource,
+                    sources: sources,
+                    onChanged: (value) {
+                      setState(() => _selectedPaymentSource = value);
+                    },
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: GlassContainer(
+                    padding: EdgeInsets.zero,
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: _currency,
+                      decoration: InputDecoration(
+                        hintText: 'Currency',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                      ),
+                      items: ['IDR', 'USD', 'EUR', 'GBP', 'JPY'].map((
+                        currency,
+                      ) {
+                        return DropdownMenuItem(
+                          value: currency,
+                          child: Text(currency),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _currency = value!);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+      loading: () => GlassContainer(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (error, stack) => GlassContainer(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Failed to load payment sources',
+              style: TextStyle(fontSize: 12, color: Colors.red),
+            ),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -402,6 +462,18 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
     );
   }
 
+  void _resetForm() {
+    setState(() {
+      _spentPlaceController.clear();
+      _descController.clear();
+      _spentAt = DateTime.now();
+      _currency = 'IDR';
+      _selectedPaymentSource = null;
+      _items.clear();
+      _hasSetDefaultPaymentSource = false;
+    });
+  }
+
   void _deleteItem(int index) {
     showDialog(
       context: context,
@@ -484,6 +556,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       await budgetService.checkBudgetAlerts(user.uid);
 
       if (mounted) {
+        _resetForm();
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
