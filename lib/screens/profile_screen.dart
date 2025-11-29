@@ -29,10 +29,6 @@ class ProfileScreen extends ConsumerWidget {
           _buildMainContent(context, ref, user, isDark),
         ],
       ),
-      // bottomNavigationBar: CustomBottomNavBar(
-      //   currentRoute: '/profile',
-      //   onAddPressed: () => _showAddExpenseModal(context),
-      // ),
     );
   }
 

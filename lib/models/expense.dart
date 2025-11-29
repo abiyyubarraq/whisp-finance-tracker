@@ -92,4 +92,39 @@ class Expense {
   List<String> getSpentTypes() {
     return items.map((item) => item.spentType).toSet().toList();
   }
+
+  /// Create a copy of the expense with optional modified fields
+  Expense copyWith({
+    String? id,
+    DateTime? createdAt,
+    DateTime? spentAt,
+    String? spentPlace,
+    String? desc,
+    List<ExpenseItem>? items,
+    double? totalValue,
+    String? paymentSource,
+    String? currency,
+    String? inputMethod,
+    String? imageUrl,
+    String? aiConfidence,
+    Map<String, dynamic>? rawAiResponse,
+    bool? isReviewed,
+  }) {
+    return Expense(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      spentAt: spentAt ?? this.spentAt,
+      spentPlace: spentPlace ?? this.spentPlace,
+      desc: desc ?? this.desc,
+      items: items ?? this.items,
+      totalValue: totalValue ?? this.totalValue,
+      paymentSource: paymentSource ?? this.paymentSource,
+      currency: currency ?? this.currency,
+      inputMethod: inputMethod ?? this.inputMethod,
+      imageUrl: imageUrl ?? this.imageUrl,
+      aiConfidence: aiConfidence ?? this.aiConfidence,
+      rawAiResponse: rawAiResponse ?? this.rawAiResponse,
+      isReviewed: isReviewed ?? this.isReviewed,
+    );
+  }
 }

@@ -7,8 +7,14 @@ import '../glass_container.dart';
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
-  const ExpenseCard({super.key, required this.expense, required this.onTap});
+  const ExpenseCard({
+    super.key,
+    required this.expense,
+    required this.onTap,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -138,15 +144,38 @@ class ExpenseCard extends StatelessWidget {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
-                    // Date
-                    Text(
-                      DateFormat('MMM dd, HH:mm').format(expense.spentAt),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5),
-                      ),
+                    // Date and delete button
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          DateFormat('MMM dd, HH:mm').format(expense.spentAt),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        if (onDelete != null) ...[
+                          SizedBox(width: 8),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: onDelete,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 20,
+                                  color: Colors.red.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

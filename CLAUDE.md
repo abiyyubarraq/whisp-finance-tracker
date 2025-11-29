@@ -474,6 +474,162 @@ Consumer(
 )
 ```
 
+## Database Operation UX Pattern
+
+All database operations (CRUD) must include proper user feedback through notifications and loading indicators. This ensures a consistent and professional user experience.
+
+### Required Elements for DB Operations
+
+1. **Loading Indicator**: Show visual feedback during async operations
+2. **Success Notification**: Confirm successful completion
+3. **Error Notification**: Display meaningful error messages
+4. **Confirmation Dialog**: Require confirmation for destructive actions (delete)
+
+### Implementation Pattern
+
+```dart
+// State variable for loading
+bool _isLoading = false;
+
+Future<void> _deleteExpense(Expense expense) async {
+  // 1. Show confirmation dialog for destructive actions
+  final confirmed = await showConfirmationDialog(
+    context: context,
+    title: 'Delete Expense',
+    message: 'Are you sure you want to delete this expense?',
+    confirmText: 'Delete',
+    isDestructive: true,
+  );
+
+  if (confirmed != true) return;
+
+  // 2. Show loading indicator
+  setState(() => _isLoading = true);
+
+  // 3. Validate user authentication
+  final user = ref.read(authStateProvider).value;
+  if (user == null) {
+    setState(() => _isLoading = false);
+    if (mounted) {
+      NotificationHelper.showError(context, 'User not authenticated');
+    }
+    return;
+  }
+
+  // 4. Perform operation with try-catch
+  try {
+    await expenseService.deleteExpense(user.uid, expense.id);
+
+    // 5. Show success notification
+    if (mounted) {
+      NotificationHelper.showSuccess(context, 'Expense deleted successfully');
+    }
+  } catch (e) {
+    // 6. Show error notification
+    if (mounted) {
+      NotificationHelper.showError(context, 'Failed to delete expense: $e');
+    }
+  } finally {
+    // 7. Reset loading state
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+```
+
+### NotificationHelper Usage
+
+```dart
+// Success notification (green)
+NotificationHelper.showSuccess(context, 'Operation completed');
+
+// Error notification (red)
+NotificationHelper.showError(context, 'Operation failed');
+
+// Warning notification (orange)
+NotificationHelper.showWarning(context, 'Please check your input');
+
+// Info notification (primary color)
+NotificationHelper.showInfo(context, 'Processing...');
+```
+
+### ConfirmationDialog Usage
+
+```dart
+// For destructive actions
+final confirmed = await showConfirmationDialog(
+  context: context,
+  title: 'Delete Item',
+  message: 'This action cannot be undone.',
+  confirmText: 'Delete',
+  isDestructive: true,  // Makes button red
+);
+
+// For non-destructive confirmations
+final confirmed = await showConfirmationDialog(
+  context: context,
+  title: 'Save Changes',
+  message: 'Do you want to save your changes?',
+  confirmText: 'Save',
+  isDestructive: false,
+);
+```
+
+### Loading Button Pattern
+
+```dart
+Container(
+  child: Material(
+    child: InkWell(
+      onTap: _isLoading ? null : _performAction,
+      child: Center(
+        child: _isLoading
+            ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text('Save'),
+      ),
+    ),
+  ),
+)
+```
+
+## Code Quality Guidelines
+
+### Best Practice Validation
+
+When implementing new features or making changes, always verify:
+
+1. **Follow Existing Patterns**: Match the established coding patterns in the codebase
+2. **DRY Principle**: Avoid code duplication; use shared widgets and utilities
+3. **Proper Error Handling**: Include try-catch blocks with user-friendly error messages
+4. **Loading States**: Show loading indicators for all async operations
+5. **User Notifications**: Provide feedback for all user actions (success/error)
+6. **Confirmation Dialogs**: Require confirmation for destructive actions
+7. **Mounted Checks**: Always check `mounted` before using `context` after async gaps
+8. **Type Safety**: Use proper type annotations, avoid `dynamic`
+9. **Null Safety**: Handle nullable values appropriately
+10. **State Management**: Use Riverpod patterns consistently
+
+### Checklist for Code Changes
+
+Before completing any task, verify:
+
+- [ ] Does the change follow existing architectural patterns?
+- [ ] Are loading indicators shown during async operations?
+- [ ] Are success/error notifications displayed to the user?
+- [ ] Do destructive actions require confirmation?
+- [ ] Is error handling implemented with try-catch?
+- [ ] Are `mounted` checks used after async operations?
+- [ ] Is the code DRY (no unnecessary duplication)?
+- [ ] Does the change work in both dark and light themes?
+
 ## Build & Development
 
 ### Development Commands

@@ -11,10 +11,13 @@ import '../utils/filter_sort.dart';
 import '../utils/date_range_helper.dart';
 import '../widgets/expense_list/expense_summary_card.dart';
 import '../widgets/expense_list/sort_sheet.dart';
-import '../widgets/expense_list/expense_details_dialog.dart';
 import '../widgets/common/empty_state.dart';
 import '../widgets/common/error_state.dart';
 import '../widgets/expense_list/filter_sheet.dart';
+import '../widgets/common/confirmation_dialog.dart';
+import '../utils/notification_helper.dart';
+import '../services/expense_service.dart';
+import 'expense_edit_screen.dart';
 
 class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
@@ -140,7 +143,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 itemBuilder: (context, index) {
                   return ExpenseCard(
                     expense: expenses[index],
-                    onTap: () => _showExpenseDetails(expenses[index]),
+                    onTap: () => _openExpenseEditor(expenses[index]),
+                    onDelete: () => _confirmDeleteExpense(expenses[index]),
                   );
                 },
               ),
@@ -265,10 +269,45 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     );
   }
 
-  void _showExpenseDetails(Expense expense) {
-    showDialog(
-      context: context,
-      builder: (context) => ExpenseDetailsDialog(expense: expense),
+  void _openExpenseEditor(Expense expense) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExpenseEditScreen(expense: expense),
+      ),
     );
+  }
+
+  Future<void> _confirmDeleteExpense(Expense expense) async {
+    final confirmed = await showConfirmationDialog(
+      context: context,
+      title: 'Delete Expense',
+      message: 'Are you sure you want to delete this expense? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+    );
+
+    if (confirmed != true) return;
+
+    final user = ref.read(authStateProvider).value;
+    if (user == null) {
+      if (mounted) {
+        NotificationHelper.showError(context, 'User not authenticated');
+      }
+      return;
+    }
+
+    try {
+      final expenseService = ExpenseService();
+      await expenseService.deleteExpense(user.uid, expense.id);
+
+      if (mounted) {
+        NotificationHelper.showSuccess(context, 'Expense deleted successfully');
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationHelper.showError(context, 'Failed to delete expense: $e');
+      }
+    }
   }
 }
