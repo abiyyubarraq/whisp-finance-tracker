@@ -18,10 +18,17 @@ class PaymentSourceDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Validate that selected value exists in sources list
+    final validatedValue = _getValidatedValue();
+
+    // Use a key based on validated value to force rebuild when value becomes invalid
+    final dropdownKey = ValueKey('payment_source_${validatedValue ?? 'null'}');
+
     return GlassContainer(
       padding: EdgeInsets.zero,
       child: DropdownButtonFormField<String>(
-        initialValue: selectedPaymentSource,
+        key: dropdownKey,
+        initialValue: validatedValue,
         decoration: InputDecoration(
           hintText: 'Payment Source',
           prefixIcon: Icon(Icons.payment_rounded, size: 20),
@@ -43,5 +50,12 @@ class PaymentSourceDropdown extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  /// Returns the selected value only if it exists in sources, otherwise null
+  String? _getValidatedValue() {
+    if (selectedPaymentSource == null) return null;
+    final exists = sources.any((source) => source.name == selectedPaymentSource);
+    return exists ? selectedPaymentSource : null;
   }
 }

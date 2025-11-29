@@ -14,6 +14,7 @@ import '../../widgets/manual_input/payment_source_dropdown.dart';
 import '../../widgets/manual_input/date_time_picker_field.dart';
 import '../../services/budget_service.dart';
 import '../../providers/user_data_provider.dart';
+import '../../utils/notification_helper.dart';
 
 class ManualInputTab extends ConsumerStatefulWidget {
   const ManualInputTab({super.key});
@@ -114,10 +115,28 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
 
     ref.listen(paymentSourcesProvider(false), (previous, next) {
       next.whenData((sources) {
+        if (!mounted) return;
+
+        // Check if selected payment source still exists in the sources list
+        if (_selectedPaymentSource != null) {
+          final stillExists = sources.any(
+            (s) => s.name == _selectedPaymentSource,
+          );
+          if (!stillExists) {
+            // Reset to first available source or null
+            setState(() {
+              _selectedPaymentSource = sources.isNotEmpty
+                  ? sources.first.name
+                  : null;
+            });
+            return;
+          }
+        }
+
+        // Set default payment source if not set yet
         if (!_hasSetDefaultPaymentSource &&
             _selectedPaymentSource == null &&
-            sources.isNotEmpty &&
-            mounted) {
+            sources.isNotEmpty) {
           setState(() {
             _hasSetDefaultPaymentSource = true;
             _selectedPaymentSource = sources.first.name;
@@ -501,22 +520,12 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please add at least one item'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      NotificationHelper.showWarning(context, 'Please add at least one item');
       return;
     }
 
     if (_selectedPaymentSource == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please select a payment source'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      NotificationHelper.showWarning(context, 'Please select a payment source');
       return;
     }
 
@@ -558,21 +567,11 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       if (mounted) {
         _resetForm();
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Expense saved successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        NotificationHelper.showSuccess(context, 'Expense saved successfully');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save expense: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        NotificationHelper.showError(context, 'Failed to save expense: $e');
       }
     } finally {
       if (mounted) {

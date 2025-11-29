@@ -17,54 +17,63 @@ void showSpentTypeDialog(
   String selectedColor = spentType?.color ?? '#6B7280';
   String selectedIcon = spentType?.icon ?? 'more_horiz';
   bool isActive = spentType?.isActive ?? true;
+  bool isLoading = false;
 
   showDialog(
     context: context,
+    barrierDismissible: true,
     builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setState) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: GlassContainer(
-            padding: EdgeInsets.all(24),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    spentType == null ? 'Add Spent Type' : 'Edit Spent Type',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 24),
-                  _buildNameField(nameController),
-                  SizedBox(height: 16),
-                  _buildColorPicker(
-                    context,
-                    selectedColor,
-                    (color) => setState(() => selectedColor = color),
-                  ),
-                  SizedBox(height: 16),
-                  _buildIconPicker(
-                    context,
-                    selectedIcon,
-                    (icon) => setState(() => selectedIcon = icon),
-                  ),
-                  SizedBox(height: 16),
-                  _buildActiveSwitch(isActive, (value) {
-                    setState(() => isActive = value);
-                  }),
-                  SizedBox(height: 24),
-                  _buildActions(
-                    context,
-                    dialogContext,
-                    userId,
-                    spentType,
-                    nameController,
-                    selectedColor,
-                    selectedIcon,
-                    isActive,
-                  ),
-                ],
+      builder: (context, setState) => PopScope(
+        canPop: !isLoading,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: GlassContainer(
+              padding: EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      spentType == null ? 'Add Spent Type' : 'Edit Spent Type',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 24),
+                    _buildNameField(nameController, isLoading),
+                    SizedBox(height: 16),
+                    _buildColorPicker(
+                      context,
+                      selectedColor,
+                      isLoading,
+                      (color) => setState(() => selectedColor = color),
+                    ),
+                    SizedBox(height: 16),
+                    _buildIconPicker(
+                      context,
+                      selectedIcon,
+                      isLoading,
+                      (icon) => setState(() => selectedIcon = icon),
+                    ),
+                    SizedBox(height: 16),
+                    _buildActiveSwitch(isActive, isLoading, (value) {
+                      setState(() => isActive = value);
+                    }),
+                    SizedBox(height: 24),
+                    _buildActions(
+                      context,
+                      dialogContext,
+                      userId,
+                      spentType,
+                      nameController,
+                      selectedColor,
+                      selectedIcon,
+                      isActive,
+                      isLoading,
+                      (loading) => setState(() => isLoading = loading),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -74,11 +83,12 @@ void showSpentTypeDialog(
   );
 }
 
-Widget _buildNameField(TextEditingController controller) {
+Widget _buildNameField(TextEditingController controller, bool isLoading) {
   return GlassContainer(
     padding: EdgeInsets.zero,
     child: TextField(
       controller: controller,
+      enabled: !isLoading,
       decoration: InputDecoration(
         hintText: 'Spent Type Name',
         prefixIcon: Icon(Icons.category_rounded, size: 20),
@@ -92,6 +102,7 @@ Widget _buildNameField(TextEditingController controller) {
 Widget _buildColorPicker(
   BuildContext context,
   String selectedColor,
+  bool isLoading,
   Function(String) onColorSelected,
 ) {
   final colors = ColorHelper.predefinedColors;
@@ -124,7 +135,7 @@ Widget _buildColorPicker(
             final isSelected = colorHex == selectedColor;
 
             return GestureDetector(
-              onTap: () => onColorSelected(colorHex),
+              onTap: isLoading ? null : () => onColorSelected(colorHex),
               child: Container(
                 width: 40,
                 height: 40,
@@ -160,6 +171,7 @@ Widget _buildColorPicker(
 Widget _buildIconPicker(
   BuildContext context,
   String selectedIcon,
+  bool isLoading,
   Function(String) onIconSelected,
 ) {
   final icons = IconHelper.availableIcons;
@@ -189,7 +201,7 @@ Widget _buildIconPicker(
             final isSelected = entry.key == selectedIcon;
 
             return GestureDetector(
-              onTap: () => onIconSelected(entry.key),
+              onTap: isLoading ? null : () => onIconSelected(entry.key),
               child: Container(
                 width: 40,
                 height: 40,
@@ -223,12 +235,15 @@ Widget _buildIconPicker(
   );
 }
 
-Widget _buildActiveSwitch(bool isActive, Function(bool) onChanged) {
+Widget _buildActiveSwitch(bool isActive, bool isLoading, Function(bool) onChanged) {
   return Row(
     children: [
       Text('Active'),
       Spacer(),
-      Switch(value: isActive, onChanged: onChanged),
+      Switch(
+        value: isActive,
+        onChanged: isLoading ? null : onChanged,
+      ),
     ],
   );
 }
@@ -242,6 +257,8 @@ Widget _buildActions(
   String selectedColor,
   String selectedIcon,
   bool isActive,
+  bool isLoading,
+  Function(bool) setLoading,
 ) {
   return Row(
     children: [
@@ -257,12 +274,18 @@ Widget _buildActions(
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => Navigator.pop(dialogContext),
+              onTap: isLoading ? null : () => Navigator.pop(dialogContext),
               borderRadius: BorderRadius.circular(12),
               child: Center(
                 child: Text(
                   'Cancel',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isLoading
+                        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -284,26 +307,38 @@ Widget _buildActions(
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => _handleSave(
-                context,
-                dialogContext,
-                userId,
-                spentType,
-                nameController,
-                selectedColor,
-                selectedIcon,
-                isActive,
-              ),
+              onTap: isLoading
+                  ? null
+                  : () => _handleSave(
+                        context,
+                        dialogContext,
+                        userId,
+                        spentType,
+                        nameController,
+                        selectedColor,
+                        selectedIcon,
+                        isActive,
+                        setLoading,
+                      ),
               borderRadius: BorderRadius.circular(12),
               child: Center(
-                child: Text(
-                  spentType == null ? 'Add' : 'Save',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                child: isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        spentType == null ? 'Add' : 'Save',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -322,6 +357,7 @@ void _handleSave(
   String selectedColor,
   String selectedIcon,
   bool isActive,
+  Function(bool) setLoading,
 ) async {
   if (nameController.text.trim().isEmpty) {
     ScaffoldMessenger.of(
@@ -330,25 +366,33 @@ void _handleSave(
     return;
   }
 
-  Navigator.pop(dialogContext);
+  setLoading(true);
 
-  if (spentType == null) {
-    await SpentTypeService.add(
-      context,
-      userId,
-      nameController.text.trim(),
-      selectedColor,
-      selectedIcon,
-    );
-  } else {
-    await SpentTypeService.update(
-      context,
-      userId,
-      spentType,
-      nameController.text.trim(),
-      selectedColor,
-      selectedIcon,
-      isActive,
-    );
+  try {
+    if (spentType == null) {
+      await SpentTypeService.add(
+        context,
+        userId,
+        nameController.text.trim(),
+        selectedColor,
+        selectedIcon,
+      );
+    } else {
+      await SpentTypeService.update(
+        context,
+        userId,
+        spentType,
+        nameController.text.trim(),
+        selectedColor,
+        selectedIcon,
+        isActive,
+      );
+    }
+
+    if (dialogContext.mounted) {
+      Navigator.pop(dialogContext);
+    }
+  } catch (e) {
+    setLoading(false);
   }
 }

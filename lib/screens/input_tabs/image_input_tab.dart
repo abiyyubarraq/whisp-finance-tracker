@@ -7,6 +7,7 @@ import '../../../models/expense_data.dart';
 import '../../../widgets/confirm_expense_form.dart';
 import '../../../widgets/glass_container.dart';
 import '../../../config/theme.dart';
+import '../../../utils/notification_helper.dart';
 
 class ImageInputTab extends ConsumerStatefulWidget {
   const ImageInputTab({super.key});
@@ -39,8 +40,9 @@ class _ImageInputTabState extends ConsumerState<ImageInputTab> {
                 imageFile: _imageFile,
                 onSave: (expense) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Expense saved successfully')),
+                  NotificationHelper.showSuccess(
+                    context,
+                    'Expense saved successfully',
                   );
                 },
                 onCancel: () {
@@ -309,12 +311,7 @@ class _ImageInputTabState extends ConsumerState<ImageInputTab> {
       setState(() => _isProcessing = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to process image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        NotificationHelper.showError(context, 'Failed to process image: $e');
       }
     }
   }

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui';
 import '../models/spent_type.dart';
 import '../widgets/glass_container.dart';
+import '../utils/notification_helper.dart';
 
 class SpentTypeService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -43,11 +44,11 @@ class SpentTypeService {
           });
 
       if (context.mounted) {
-        _showSuccessMessage(context, 'Spent type added successfully');
+        NotificationHelper.showSuccess(context, 'Spent type added successfully');
       }
     } catch (e) {
       if (context.mounted) {
-        _showErrorMessage(context, e.toString());
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
   }
@@ -76,11 +77,11 @@ class SpentTypeService {
           });
 
       if (context.mounted) {
-        _showSuccessMessage(context, 'Spent type updated successfully');
+        NotificationHelper.showSuccess(context, 'Spent type updated successfully');
       }
     } catch (e) {
       if (context.mounted) {
-        _showErrorMessage(context, e.toString());
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
   }
@@ -91,80 +92,81 @@ class SpentTypeService {
     String userId,
     SpentType spentType,
   ) async {
-    final confirm = await _showDeleteConfirmation(context, spentType.name);
-
-    if (confirm == true) {
-      try {
-        await _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('spentTypes')
-            .doc(spentType.id)
-            .delete();
-
-        if (context.mounted) {
-          _showSuccessMessage(context, 'Spent type deleted successfully');
-        }
-      } catch (e) {
-        if (context.mounted) {
-          _showErrorMessage(context, e.toString());
-        }
-      }
-    }
+    await _showDeleteConfirmation(context, userId, spentType);
   }
 
   /// Shows a confirmation dialog before deleting
-  static Future<bool?> _showDeleteConfirmation(
+  static Future<void> _showDeleteConfirmation(
     BuildContext context,
-    String name,
+    String userId,
+    SpentType spentType,
   ) {
-    return showDialog<bool>(
+    bool isLoading = false;
+
+    return showDialog<void>(
       context: context,
-      builder: (dialogContext) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: GlassContainer(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogIcon(),
-                SizedBox(height: 16),
-                Text(
-                  'Delete Spent Type',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Are you sure you want to delete "$name"?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'This action cannot be undone.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.red.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: 24),
-                Row(
+      barrierDismissible: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => PopScope(
+          canPop: !isLoading,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              child: GlassContainer(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(child: _buildCancelButton(dialogContext)),
-                    SizedBox(width: 12),
-                    Expanded(child: _buildDeleteButton(dialogContext)),
+                    _buildDialogIcon(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Delete Spent Type',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'Are you sure you want to delete "${spentType.name}"?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'This action cannot be undone.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCancelButton(dialogContext, isLoading),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDeleteButton(
+                            context,
+                            dialogContext,
+                            userId,
+                            spentType,
+                            isLoading,
+                            (loading) => setState(() => isLoading = loading),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -183,7 +185,7 @@ class SpentTypeService {
     );
   }
 
-  static Widget _buildCancelButton(BuildContext dialogContext) {
+  static Widget _buildCancelButton(BuildContext dialogContext, bool isLoading) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -195,12 +197,18 @@ class SpentTypeService {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => Navigator.pop(dialogContext, false),
+          onTap: isLoading ? null : () => Navigator.pop(dialogContext),
           borderRadius: BorderRadius.circular(12),
           child: Center(
             child: Text(
               'Cancel',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isLoading
+                    ? Theme.of(dialogContext).colorScheme.onSurface.withValues(alpha: 0.3)
+                    : null,
+              ),
             ),
           ),
         ),
@@ -208,7 +216,14 @@ class SpentTypeService {
     );
   }
 
-  static Widget _buildDeleteButton(BuildContext dialogContext) {
+  static Widget _buildDeleteButton(
+    BuildContext context,
+    BuildContext dialogContext,
+    String userId,
+    SpentType spentType,
+    bool isLoading,
+    Function(bool) setLoading,
+  ) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -225,42 +240,54 @@ class SpentTypeService {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => Navigator.pop(dialogContext, true),
+          onTap: isLoading
+              ? null
+              : () async {
+                  setLoading(true);
+                  try {
+                    await _firestore
+                        .collection('users')
+                        .doc(userId)
+                        .collection('spentTypes')
+                        .doc(spentType.id)
+                        .delete();
+
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext);
+                    }
+                    if (context.mounted) {
+                      NotificationHelper.showSuccess(context, 'Spent type deleted successfully');
+                    }
+                  } catch (e) {
+                    setLoading(false);
+                    if (context.mounted) {
+                      NotificationHelper.showError(context, 'Error: ${e.toString()}');
+                    }
+                  }
+                },
           borderRadius: BorderRadius.circular(12),
           child: Center(
-            child: Text(
-              'Delete',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
+            child: isLoading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Delete',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
     );
   }
 
-  static void _showSuccessMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  static void _showErrorMessage(BuildContext context, String error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: $error'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
 }

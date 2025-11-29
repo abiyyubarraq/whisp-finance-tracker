@@ -9,6 +9,7 @@ import '../../../models/expense_data.dart';
 import '../../../widgets/confirm_expense_form.dart';
 import '../../../widgets/glass_container.dart';
 import '../../../config/theme.dart';
+import '../../../utils/notification_helper.dart';
 
 class VoiceInputTab extends ConsumerStatefulWidget {
   const VoiceInputTab({super.key});
@@ -51,8 +52,9 @@ class _VoiceInputTabState extends ConsumerState<VoiceInputTab> {
                 initialData: _extractedData!,
                 onSave: (expense) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Expense saved successfully')),
+                  NotificationHelper.showSuccess(
+                    context,
+                    'Expense saved successfully',
                   );
                 },
                 onCancel: () {
@@ -312,8 +314,9 @@ class _VoiceInputTabState extends ConsumerState<VoiceInputTab> {
       final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Microphone permission required')),
+          NotificationHelper.showWarning(
+            context,
+            'Microphone permission required',
           );
         }
         return;
@@ -338,9 +341,7 @@ class _VoiceInputTabState extends ConsumerState<VoiceInputTab> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start recording: $e')),
-        );
+        NotificationHelper.showError(context, 'Failed to start recording: $e');
       }
     }
   }
@@ -358,9 +359,7 @@ class _VoiceInputTabState extends ConsumerState<VoiceInputTab> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to stop recording: $e')));
+        NotificationHelper.showError(context, 'Failed to stop recording: $e');
       }
     }
   }
@@ -384,12 +383,7 @@ class _VoiceInputTabState extends ConsumerState<VoiceInputTab> {
       setState(() => _isProcessing = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to process audio: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        NotificationHelper.showError(context, 'Failed to process audio: $e');
       }
     }
   }

@@ -13,39 +13,46 @@ void showPaymentSourceDialog(
 }) {
   final nameController = TextEditingController(text: source?.name ?? '');
   bool isActive = source?.isActive ?? true;
+  bool isLoading = false;
 
   showDialog(
     context: context,
+    barrierDismissible: true,
     builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setState) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: GlassContainer(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  source == null ? 'Add Payment Source' : 'Edit Payment Source',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 24),
-                _buildNameField(nameController),
-                SizedBox(height: 16),
-                _buildActiveSwitch(isActive, (value) {
-                  setState(() => isActive = value);
-                }),
-                SizedBox(height: 24),
-                _buildActions(
-                  context,
-                  dialogContext,
-                  userId,
-                  source,
-                  nameController,
-                  isActive,
-                ),
-              ],
+      builder: (context, setState) => PopScope(
+        canPop: !isLoading,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: GlassContainer(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    source == null ? 'Add Payment Source' : 'Edit Payment Source',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 24),
+                  _buildNameField(nameController, isLoading),
+                  SizedBox(height: 16),
+                  _buildActiveSwitch(isActive, isLoading, (value) {
+                    setState(() => isActive = value);
+                  }),
+                  SizedBox(height: 24),
+                  _buildActions(
+                    context,
+                    dialogContext,
+                    userId,
+                    source,
+                    nameController,
+                    isActive,
+                    isLoading,
+                    (loading) => setState(() => isLoading = loading),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -54,11 +61,12 @@ void showPaymentSourceDialog(
   );
 }
 
-Widget _buildNameField(TextEditingController controller) {
+Widget _buildNameField(TextEditingController controller, bool isLoading) {
   return GlassContainer(
     padding: EdgeInsets.zero,
     child: TextField(
       controller: controller,
+      enabled: !isLoading,
       decoration: InputDecoration(
         hintText: 'Payment Source Name',
         prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20),
@@ -69,12 +77,15 @@ Widget _buildNameField(TextEditingController controller) {
   );
 }
 
-Widget _buildActiveSwitch(bool isActive, Function(bool) onChanged) {
+Widget _buildActiveSwitch(bool isActive, bool isLoading, Function(bool) onChanged) {
   return Row(
     children: [
       Text('Active'),
       Spacer(),
-      Switch(value: isActive, onChanged: onChanged),
+      Switch(
+        value: isActive,
+        onChanged: isLoading ? null : onChanged,
+      ),
     ],
   );
 }
@@ -86,6 +97,8 @@ Widget _buildActions(
   PaymentSource? source,
   TextEditingController nameController,
   bool isActive,
+  bool isLoading,
+  Function(bool) setLoading,
 ) {
   return Row(
     children: [
@@ -101,12 +114,18 @@ Widget _buildActions(
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => Navigator.pop(dialogContext),
+              onTap: isLoading ? null : () => Navigator.pop(dialogContext),
               borderRadius: BorderRadius.circular(12),
               child: Center(
                 child: Text(
                   'Cancel',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isLoading
+                        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -128,24 +147,36 @@ Widget _buildActions(
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => _handleSave(
-                context,
-                dialogContext,
-                userId,
-                source,
-                nameController,
-                isActive,
-              ),
+              onTap: isLoading
+                  ? null
+                  : () => _handleSave(
+                        context,
+                        dialogContext,
+                        userId,
+                        source,
+                        nameController,
+                        isActive,
+                        setLoading,
+                      ),
               borderRadius: BorderRadius.circular(12),
               child: Center(
-                child: Text(
-                  source == null ? 'Add' : 'Save',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                child: isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        source == null ? 'Add' : 'Save',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -162,6 +193,7 @@ void _handleSave(
   PaymentSource? source,
   TextEditingController nameController,
   bool isActive,
+  Function(bool) setLoading,
 ) async {
   if (nameController.text.trim().isEmpty) {
     ScaffoldMessenger.of(
@@ -170,17 +202,25 @@ void _handleSave(
     return;
   }
 
-  Navigator.pop(dialogContext);
+  setLoading(true);
 
-  if (source == null) {
-    await PaymentSourceService.add(context, userId, nameController.text.trim());
-  } else {
-    await PaymentSourceService.update(
-      context,
-      userId,
-      source,
-      nameController.text.trim(),
-      isActive,
-    );
+  try {
+    if (source == null) {
+      await PaymentSourceService.add(context, userId, nameController.text.trim());
+    } else {
+      await PaymentSourceService.update(
+        context,
+        userId,
+        source,
+        nameController.text.trim(),
+        isActive,
+      );
+    }
+
+    if (dialogContext.mounted) {
+      Navigator.pop(dialogContext);
+    }
+  } catch (e) {
+    setLoading(false);
   }
 }

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui';
 import '../models/payment_source.dart';
 import '../widgets/glass_container.dart';
+import '../utils/notification_helper.dart';
 
 class PaymentSourceService {
   static Future<void> add(
@@ -36,15 +37,17 @@ class PaymentSourceService {
           });
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment source added successfully')),
+        NotificationHelper.showSuccess(
+          context,
+          'Payment source added successfully',
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        NotificationHelper.showError(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+          'Error: ${e.toString()}',
+        );
       }
     }
   }
@@ -65,15 +68,17 @@ class PaymentSourceService {
           .update({'name': name, 'isActive': isActive});
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment source updated successfully')),
+        NotificationHelper.showSuccess(
+          context,
+          'Payment source updated successfully',
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        NotificationHelper.showError(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+          'Error: ${e.toString()}',
+        );
       }
     }
   }
@@ -83,71 +88,68 @@ class PaymentSourceService {
     String userId,
     PaymentSource source,
   ) async {
-    final confirm = await _showDeleteConfirmation(context, source.name);
-
-    if (confirm == true) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('paymentSources')
-            .doc(source.id)
-            .delete();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Payment source deleted successfully')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-        }
-      }
-    }
+    await _showDeleteConfirmation(context, userId, source);
   }
 
-  static Future<bool?> _showDeleteConfirmation(
+  static Future<void> _showDeleteConfirmation(
     BuildContext context,
-    String name,
+    String userId,
+    PaymentSource source,
   ) {
-    return showDialog<bool>(
+    bool isLoading = false;
+
+    return showDialog<void>(
       context: context,
-      builder: (dialogContext) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: GlassContainer(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Delete Payment Source',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Are you sure you want to delete "$name"?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-                SizedBox(height: 24),
-                Row(
+      barrierDismissible: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => PopScope(
+          canPop: !isLoading,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              child: GlassContainer(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(child: _buildCancelButton(dialogContext)),
-                    SizedBox(width: 12),
-                    Expanded(child: _buildDeleteButton(dialogContext)),
+                    Text(
+                      'Delete Payment Source',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Are you sure you want to delete "${source.name}"?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCancelButton(dialogContext, isLoading),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDeleteButton(
+                            context,
+                            dialogContext,
+                            userId,
+                            source,
+                            isLoading,
+                            (loading) => setState(() => isLoading = loading),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -155,7 +157,7 @@ class PaymentSourceService {
     );
   }
 
-  static Widget _buildCancelButton(BuildContext dialogContext) {
+  static Widget _buildCancelButton(BuildContext dialogContext, bool isLoading) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -167,12 +169,18 @@ class PaymentSourceService {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => Navigator.pop(dialogContext, false),
+          onTap: isLoading ? null : () => Navigator.pop(dialogContext),
           borderRadius: BorderRadius.circular(12),
           child: Center(
             child: Text(
               'Cancel',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isLoading
+                    ? Theme.of(dialogContext).colorScheme.onSurface.withValues(alpha: 0.3)
+                    : null,
+              ),
             ),
           ),
         ),
@@ -180,7 +188,14 @@ class PaymentSourceService {
     );
   }
 
-  static Widget _buildDeleteButton(BuildContext dialogContext) {
+  static Widget _buildDeleteButton(
+    BuildContext context,
+    BuildContext dialogContext,
+    String userId,
+    PaymentSource source,
+    bool isLoading,
+    Function(bool) setLoading,
+  ) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -190,17 +205,56 @@ class PaymentSourceService {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => Navigator.pop(dialogContext, true),
+          onTap: isLoading
+              ? null
+              : () async {
+                  setLoading(true);
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .collection('paymentSources')
+                        .doc(source.id)
+                        .delete();
+
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext);
+                    }
+                    if (context.mounted) {
+                      NotificationHelper.showSuccess(
+                        context,
+                        'Payment source deleted successfully',
+                      );
+                    }
+                  } catch (e) {
+                    setLoading(false);
+                    if (context.mounted) {
+                      NotificationHelper.showError(
+                        context,
+                        'Error: ${e.toString()}',
+                      );
+                    }
+                  }
+                },
           borderRadius: BorderRadius.circular(12),
           child: Center(
-            child: Text(
-              'Delete',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
+            child: isLoading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Delete',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),

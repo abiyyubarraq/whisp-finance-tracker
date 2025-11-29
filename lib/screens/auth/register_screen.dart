@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
 import '../../utils/constants.dart';
+import '../../utils/notification_helper.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -52,9 +53,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await _createDefaultData(credential.user!.uid);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     } finally {
       if (mounted) {
