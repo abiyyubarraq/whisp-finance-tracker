@@ -252,7 +252,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
   }
 
   Widget _buildSpentTypeDropdown() {
-    final spentTypesAsync = ref.watch(activeSpentTypesProvider);
+    final spentTypesAsync = ref.watch(spentTypesProvider(false));
 
     spentTypesAsync.whenData((types) {
       if (!_hasSetDefaultSpentType &&
@@ -266,7 +266,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
       }
     });
 
-    ref.listen(activeSpentTypesProvider, (previous, next) {
+    ref.listen(spentTypesProvider(false), (previous, next) {
       next.whenData((types) {
         if (!_hasSetDefaultSpentType &&
             _selectedSpentType == null &&

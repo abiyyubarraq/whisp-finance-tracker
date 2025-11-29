@@ -1,49 +1,95 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/spent_type.dart';
 import '../models/payment_source.dart';
+import '../models/expense.dart';
+import '../services/expense_service.dart';
 import 'auth_provider.dart';
 
-// Provider for active spent types (categories)
-final activeSpentTypesProvider = StreamProvider<List<SpentType>>((ref) {
-  final user = ref.watch(authStateProvider).value;
+// ============================================================================
+// Service Providers
+// ============================================================================
 
-  if (user == null) {
-    return Stream.value([]);
-  }
-
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .collection('spentTypes')
-      .where('isActive', isEqualTo: true)
-      .orderBy('order')
-      .snapshots()
-      .map((snapshot) {
-        return snapshot.docs
-            .map((doc) => SpentType.fromFirestore(doc))
-            .toList();
-      });
+/// Expense service provider (singleton)
+final expenseServiceProvider = Provider<ExpenseService>((ref) {
+  return ExpenseService();
 });
 
-// Provider for active payment sources
-final activePaymentSourcesProvider = StreamProvider<List<PaymentSource>>((ref) {
+// ============================================================================
+// Spent Types Providers
+// ============================================================================
+
+/// Parameterized provider for spent types
+/// - `includeInactive: false` → only active spent types (for dropdowns, forms)
+/// - `includeInactive: true` → all spent types (for management screens)
+final spentTypesProvider =
+    StreamProvider.family<List<SpentType>, bool>((ref, includeInactive) {
   final user = ref.watch(authStateProvider).value;
 
   if (user == null) {
     return Stream.value([]);
   }
 
-  return FirebaseFirestore.instance
+  Query query = FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
-      .collection('paymentSources')
-      .where('isActive', isEqualTo: true)
-      .orderBy('order')
-      .snapshots()
-      .map((snapshot) {
-        return snapshot.docs
-            .map((doc) => PaymentSource.fromFirestore(doc))
-            .toList();
-      });
+      .collection('spentTypes');
+
+  if (!includeInactive) {
+    query = query.where('isActive', isEqualTo: true);
+  }
+
+  return query.orderBy('order').snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) => SpentType.fromFirestore(doc)).toList();
+  });
+});
+
+// ============================================================================
+// Payment Sources Providers
+// ============================================================================
+
+/// Parameterized provider for payment sources
+/// - `includeInactive: false` → only active payment sources (for dropdowns, forms)
+/// - `includeInactive: true` → all payment sources (for management screens)
+final paymentSourcesProvider =
+    StreamProvider.family<List<PaymentSource>, bool>((ref, includeInactive) {
+  final user = ref.watch(authStateProvider).value;
+
+  if (user == null) {
+    return Stream.value([]);
+  }
+
+  Query query = FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('paymentSources');
+
+  if (!includeInactive) {
+    query = query.where('isActive', isEqualTo: true);
+  }
+
+  return query.orderBy('order').snapshots().map((snapshot) {
+    return snapshot.docs
+        .map((doc) => PaymentSource.fromFirestore(doc))
+        .toList();
+  });
+});
+
+// ============================================================================
+// Expense Providers
+// ============================================================================
+
+/// Parameterized provider for expenses by date range
+final expensesByDateRangeProvider =
+    StreamProvider.family<List<Expense>, DateTimeRange>((ref, dateRange) {
+  final user = ref.watch(authStateProvider).value;
+
+  if (user == null) {
+    return Stream.value([]);
+  }
+
+  return ref
+      .watch(expenseServiceProvider)
+      .streamExpensesByDateRange(user.uid, dateRange);
 });

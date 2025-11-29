@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_data_provider.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/modern_app_bar.dart';
 import '../config/theme.dart';
-import '../models/payment_source.dart';
 import '../widgets/profile/payment_source_item.dart';
 import '../widgets/profile/payment_source_dialog.dart';
 
@@ -27,7 +26,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
         children: [
           _buildBackground(isDark),
           _buildDecorativeCircles(isDark),
-          _buildMainContent(context, user.uid, isDark),
+          _buildMainContent(context, ref, user.uid, isDark),
         ],
       ),
     );
@@ -99,7 +98,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, String userId, bool isDark) {
+  Widget _buildMainContent(BuildContext context, WidgetRef ref, String userId, bool isDark) {
     return Column(
       children: [
         PreferredSize(
@@ -114,7 +113,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
                 SizedBox(height: 16),
                 _buildHeader(context, userId),
                 SizedBox(height: 16),
-                _buildSourcesList(context, userId),
+                _buildSourcesList(context, ref, userId),
                 SizedBox(height: 24),
                 _buildAddPaymentSourceButton(context, userId),
                 SizedBox(height: 24),
@@ -196,30 +195,11 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSourcesList(BuildContext context, String userId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('paymentSources')
-          .orderBy('order')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+  Widget _buildSourcesList(BuildContext context, WidgetRef ref, String userId) {
+    final sourcesAsync = ref.watch(paymentSourcesProvider(true));
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Error loading payment sources'));
-        }
-
-        final sources = snapshot.data?.docs ?? [];
-
+    return sourcesAsync.when(
+      data: (sources) {
         if (sources.isEmpty) {
           return _buildEmptyState(context);
         }
@@ -229,13 +209,22 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
           child: GlassContainer(
             padding: EdgeInsets.all(8),
             child: Column(
-              children: sources.map((doc) {
-                final source = PaymentSource.fromFirestore(doc);
+              children: sources.map((source) {
                 return PaymentSourceItem(userId: userId, source: source);
               }).toList(),
             ),
           ),
         );
+      },
+      loading: () => Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (error, stackTrace) {
+        debugPrint('Error loading payment sources: $error');
+        return Center(child: Text('Error loading payment sources'));
       },
     );
   }

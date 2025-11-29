@@ -1,13 +1,14 @@
 // lib/screens/expense_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_data_provider.dart';
 import '../models/expense.dart';
 import '../widgets/expense_list/expense_card.dart';
 import '../widgets/modern_app_bar.dart';
-import '../config/theme.dart';
+import '../widgets/common/gradient_action_button.dart';
 import '../utils/filter_sort.dart';
+import '../utils/date_range_helper.dart';
 import '../widgets/expense_list/expense_summary_card.dart';
 import '../widgets/expense_list/sort_sheet.dart';
 import '../widgets/expense_list/expense_details_dialog.dart';
@@ -29,12 +30,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with this month as default
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
     _filter = ExpenseFilter(
-      dateRange: DateTimeRange(start: startOfMonth, end: endOfMonth),
+      dateRange: DateRangeHelper.getCurrentMonthRange(),
     );
   }
 
@@ -46,6 +43,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       return const Center(child: Text('Please login'));
     }
 
+    // Use the date range from filter, default to current month if null
+    final dateRange = _filter.dateRange ?? DateRangeHelper.getCurrentMonthRange();
+    final expensesAsync = ref.watch(expensesByDateRangeProvider(dateRange));
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: PreferredSize(
@@ -55,29 +56,19 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           actions: _buildAppBarActions(context),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _getExpensesStream(user.uid),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildLoadingState();
-          }
-
-          if (snapshot.hasError) {
-            debugPrint('StreamBuilder error for expenses: ${snapshot.error}');
-            return ErrorState(
-              message: 'Failed to load expenses',
-              onRetry: () => setState(() {}),
-            );
-          }
-
-          final expenses = snapshot.data!.docs
-              .map((doc) => Expense.fromFirestore(doc))
-              .toList();
-
+      body: expensesAsync.when(
+        data: (expenses) {
           final filteredExpenses = _applyFilters(expenses);
           final sortedExpenses = _applySorting(filteredExpenses);
-
           return _buildExpensesList(sortedExpenses);
+        },
+        loading: () => _buildLoadingState(),
+        error: (error, stackTrace) {
+          debugPrint('Error loading expenses: $error');
+          return ErrorState(
+            message: 'Failed to load expenses',
+            onRetry: () => ref.invalidate(expensesByDateRangeProvider(dateRange)),
+          );
         },
       ),
     );
@@ -86,78 +77,22 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   List<Widget> _buildAppBarActions(BuildContext context) {
     return [
       SizedBox(width: 8),
-      _buildActionButton(
-        context,
+      GradientActionButton(
         icon: Icons.filter_list_rounded,
         onTap: _showFilterSheet,
-        hasActiveFilter: _filter.hasActiveFilters(),
+        hasActiveIndicator: _filter.hasActiveFilters(),
       ),
       SizedBox(width: 8),
-      _buildActionButton(
-        context,
+      GradientActionButton(
         icon: Icons.sort_rounded,
         onTap: _showSortSheet,
       ),
       SizedBox(width: 8),
-      _buildActionButton(
-        context,
+      GradientActionButton(
         icon: Icons.person_rounded,
         onTap: () => Navigator.pushNamed(context, '/profile'),
       ),
     ];
-  }
-
-  Widget _buildActionButton(
-    BuildContext context, {
-    required IconData icon,
-    required VoidCallback onTap,
-    bool hasActiveFilter = false,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Stack(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark ? AppTheme.gradientDark : AppTheme.gradientLight,
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryLight.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(12),
-              child: Icon(icon, color: Colors.white, size: 20),
-            ),
-          ),
-        ),
-        if (hasActiveFilter)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1),
-              ),
-            ),
-          ),
-      ],
-    );
   }
 
   Widget _buildLoadingState() {
@@ -195,7 +130,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
-                setState(() {});
+                final dateRange = _filter.dateRange ?? DateRangeHelper.getCurrentMonthRange();
+                ref.invalidate(expensesByDateRangeProvider(dateRange));
               },
               color: Theme.of(context).colorScheme.primary,
               child: ListView.builder(
@@ -220,29 +156,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           ),
       ],
     );
-  }
-
-  Stream<QuerySnapshot> _getExpensesStream(String userId) {
-    Query query = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('expenses');
-
-    if (_filter.dateRange != null) {
-      query = query
-          .where(
-            'spentAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(
-              _filter.dateRange!.start,
-            ),
-          )
-          .where(
-            'spentAt',
-            isLessThanOrEqualTo: Timestamp.fromDate(_filter.dateRange!.end),
-          );
-    }
-
-    return query.orderBy('spentAt', descending: true).snapshots();
   }
 
   List<Expense> _applyFilters(List<Expense> expenses) {

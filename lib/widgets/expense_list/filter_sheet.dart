@@ -215,7 +215,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
   }
 
   Widget _buildSpentTypesFilter() {
-    final spentTypesAsync = ref.watch(activeSpentTypesProvider);
+    final spentTypesAsync = ref.watch(spentTypesProvider(false));
 
     return spentTypesAsync.when(
       data: (types) {
@@ -259,7 +259,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
   }
 
   Widget _buildPaymentSourcesFilter() {
-    final paymentSourcesAsync = ref.watch(activePaymentSourcesProvider);
+    final paymentSourcesAsync = ref.watch(paymentSourcesProvider(false));
 
     return paymentSourcesAsync.when(
       data: (sources) {

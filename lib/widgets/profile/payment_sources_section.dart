@@ -1,24 +1,24 @@
 // lib/widgets/profile/payment_sources_section.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/payment_source.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/user_data_provider.dart';
 import '../../config/theme.dart';
 import '../glass_container.dart';
 import 'payment_source_item.dart';
 import 'payment_source_dialog.dart';
 
-class PaymentSourcesSection extends StatelessWidget {
+class PaymentSourcesSection extends ConsumerWidget {
   final String userId;
 
   const PaymentSourcesSection({super.key, required this.userId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [_buildHeader(context), _buildSourcesList(context)],
+        children: [_buildHeader(context), _buildSourcesList(context, ref)],
       ),
     );
   }
@@ -61,30 +61,11 @@ class PaymentSourcesSection extends StatelessWidget {
     );
   }
 
-  Widget _buildSourcesList(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('paymentSources')
-          .orderBy('order')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+  Widget _buildSourcesList(BuildContext context, WidgetRef ref) {
+    final sourcesAsync = ref.watch(paymentSourcesProvider(true));
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Error loading payment sources'));
-        }
-
-        final sources = snapshot.data?.docs ?? [];
-
+    return sourcesAsync.when(
+      data: (sources) {
         if (sources.isEmpty) {
           return _buildEmptyState(context);
         }
@@ -92,12 +73,21 @@ class PaymentSourcesSection extends StatelessWidget {
         return GlassContainer(
           padding: EdgeInsets.all(8),
           child: Column(
-            children: sources.map((doc) {
-              final source = PaymentSource.fromFirestore(doc);
+            children: sources.map((source) {
               return PaymentSourceItem(userId: userId, source: source);
             }).toList(),
           ),
         );
+      },
+      loading: () => Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (error, stackTrace) {
+        debugPrint('Error loading payment sources: $error');
+        return Center(child: Text('Error loading payment sources'));
       },
     );
   }

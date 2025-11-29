@@ -98,7 +98,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   }
 
   Widget _buildBasicInfo() {
-    final paymentSourcesAsync = ref.watch(activePaymentSourcesProvider);
+    final paymentSourcesAsync = ref.watch(paymentSourcesProvider(false));
 
     paymentSourcesAsync.whenData((sources) {
       if (!_hasSetDefaultPaymentSource &&
@@ -112,7 +112,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       }
     });
 
-    ref.listen(activePaymentSourcesProvider, (previous, next) {
+    ref.listen(paymentSourcesProvider(false), (previous, next) {
       next.whenData((sources) {
         if (!_hasSetDefaultPaymentSource &&
             _selectedPaymentSource == null &&
