@@ -15,10 +15,17 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
-  final DateTimeRange _dateRange = DateTimeRange(
-    start: DateTime.now().subtract(const Duration(days: 30)),
-    end: DateTime.now(),
-  );
+  DateTimeRange? _dateRange;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with this month as default (same as expense_list_screen)
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    _dateRange = DateTimeRange(start: startOfMonth, end: endOfMonth);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,14 +45,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
+        key: ValueKey('${_dateRange!.start}_${_dateRange!.end}'),
         stream: _getAnalyticsStream(user.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState();
           }
 
           final expenses = snapshot.data!.docs
@@ -78,7 +82,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   Widget _buildSummaryCards(List<Expense> expenses) {
     final totalSpent = expenses.fold<double>(0, (sum, e) => sum + e.totalValue);
-    final avgPerDay = totalSpent / _dateRange.duration.inDays.clamp(1, 999);
+    final avgPerDay = totalSpent / _dateRange!.duration.inDays.clamp(1, 999);
+    final dateLabel = _getDateLabel();
+    final itemTotal = expenses.fold<int>(0, (sum, e) => sum + e.items.length);
 
     return GradientGlassContainer(
       padding: EdgeInsets.all(20),
@@ -128,18 +134,24 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildMiniStat(
-                  'Avg/Day',
-                  'IDR ${_formatAmount(avgPerDay)}',
-                  Icons.trending_up_rounded,
+                child: GestureDetector(
+                  onTap: () => _showDateRangePicker(context),
+                  behavior: HitTestBehavior.opaque,
+                  child: _buildMiniStat(
+                    dateLabel,
+                    '${expenses.length} transactions',
+                    Icons.calendar_today_rounded,
+                    'On $itemTotal items',
+                  ),
                 ),
               ),
               SizedBox(width: 12),
               Expanded(
                 child: _buildMiniStat(
-                  'Transactions',
-                  '${expenses.length}',
-                  Icons.receipt_rounded,
+                  'Avg/Day',
+                  'IDR ${_formatAmount(avgPerDay)}',
+                  Icons.trending_up_rounded,
+                  null,
                 ),
               ),
             ],
@@ -149,7 +161,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     );
   }
 
-  Widget _buildMiniStat(String label, String value, IconData icon) {
+  Widget _buildMiniStat(
+    String label,
+    String value,
+    IconData icon,
+    String? subValue,
+  ) {
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -186,6 +203,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (subValue != null)
+                  Text(
+                    subValue,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -201,6 +226,77 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       return '${(amount / 1000).toStringAsFixed(1)}K';
     }
     return amount.toStringAsFixed(0);
+  }
+
+  String _getDateLabel() {
+    if (_dateRange == null) {
+      return 'All Time';
+    }
+    // Format custom date range
+    final startStr = _formatDate(_dateRange!.start);
+    final endStr = _formatDate(_dateRange!.end);
+    return '$startStr - $endStr';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Future<void> _showDateRangePicker(BuildContext context) async {
+    try {
+      final now = DateTime.now();
+      final lastDate = DateTime(now.year, now.month, now.day);
+
+      // Clamp the existing date range to ensure it's within valid bounds
+      final clampedStart = _dateRange!.start.isBefore(DateTime(2020))
+          ? DateTime(2020)
+          : (_dateRange!.start.isAfter(lastDate)
+                ? lastDate
+                : _dateRange!.start);
+      final clampedEnd = _dateRange!.end.isAfter(lastDate)
+          ? lastDate
+          : (_dateRange!.end.isBefore(clampedStart)
+                ? clampedStart
+                : _dateRange!.end);
+      final initialRange = DateTimeRange(start: clampedStart, end: clampedEnd);
+
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: lastDate,
+        initialDateRange: initialRange,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context),
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 600, maxHeight: 600),
+                child: child,
+              ),
+            ),
+          );
+        },
+      );
+
+      if (picked != null) {
+        setState(() {
+          // Ensure end date includes the full day (23:59:59)
+          final endDate = DateTime(
+            picked.end.year,
+            picked.end.month,
+            picked.end.day,
+            23,
+            59,
+            59,
+          );
+          _dateRange = DateTimeRange(start: picked.start, end: endDate);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error showing date range picker: $e');
+    }
   }
 
   Widget _buildCategoryBreakdown(List<Expense> expenses) {
@@ -350,11 +446,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         .collection('expenses')
         .where(
           'spentAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(_dateRange.start),
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_dateRange!.start),
         )
         .where(
           'spentAt',
-          isLessThanOrEqualTo: Timestamp.fromDate(_dateRange.end),
+          isLessThanOrEqualTo: Timestamp.fromDate(_dateRange!.end),
         )
         .snapshots();
   }
@@ -384,52 +480,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           borderRadius: BorderRadius.circular(12),
           child: Icon(Icons.person_rounded, color: Colors.white, size: 20),
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark ? AppTheme.gradientDark : AppTheme.gradientLight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.analytics_rounded, size: 60, color: Colors.white),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'No data to analyze',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          SizedBox(height: 8),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 60),
-            child: Text(
-              'Start adding expenses to see analytics',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

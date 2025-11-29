@@ -23,8 +23,20 @@ class ExpenseListScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
-  ExpenseFilter _filter = ExpenseFilter();
+  late ExpenseFilter _filter;
   ExpenseSort _sort = ExpenseSort(SortField.spentAt, SortDirection.descending);
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with this month as default
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    _filter = ExpenseFilter(
+      dateRange: DateTimeRange(start: startOfMonth, end: endOfMonth),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,34 +70,12 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             );
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return EmptyState(
-              icon: Icons.receipt_long_rounded,
-              title: 'No expenses yet',
-              message: 'Start tracking your expenses by tapping the + button',
-            );
-          }
-
           final expenses = snapshot.data!.docs
               .map((doc) => Expense.fromFirestore(doc))
               .toList();
 
           final filteredExpenses = _applyFilters(expenses);
           final sortedExpenses = _applySorting(filteredExpenses);
-
-          if (sortedExpenses.isEmpty) {
-            return EmptyState(
-              icon: Icons.filter_list_off_rounded,
-              title: 'No matching expenses',
-              message: 'Try adjusting your filters',
-              action: TextButton(
-                onPressed: () {
-                  setState(() => _filter = ExpenseFilter());
-                },
-                child: Text('Clear Filters'),
-              ),
-            );
-          }
 
           return _buildExpensesList(sortedExpenses);
         },
@@ -183,26 +173,51 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Widget _buildExpensesList(List<Expense> expenses) {
     return Column(
       children: [
-        ExpenseSummaryCard(expenses: expenses),
+        ExpenseSummaryCard(
+          expenses: expenses,
+          dateRange: _filter.dateRange,
+          onDateRangeSelected: (dateRange) {
+            setState(() {
+              _filter = ExpenseFilter(
+                dateRange: dateRange,
+                currencyFilter: _filter.currencyFilter,
+                selectedSpentTypes: _filter.selectedSpentTypes,
+                selectedPaymentSources: _filter.selectedPaymentSources,
+                showOnlyFlagged: _filter.showOnlyFlagged,
+                minAmount: _filter.minAmount,
+                maxAmount: _filter.maxAmount,
+              );
+            });
+          },
+        ),
         SizedBox(height: 16),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              setState(() {});
-            },
-            color: Theme.of(context).colorScheme.primary,
-            child: ListView.builder(
-              padding: EdgeInsets.only(bottom: 100),
-              itemCount: expenses.length,
-              itemBuilder: (context, index) {
-                return ExpenseCard(
-                  expense: expenses[index],
-                  onTap: () => _showExpenseDetails(expenses[index]),
-                );
+        if (expenses.isNotEmpty)
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {});
               },
+              color: Theme.of(context).colorScheme.primary,
+              child: ListView.builder(
+                padding: EdgeInsets.only(bottom: 100),
+                itemCount: expenses.length,
+                itemBuilder: (context, index) {
+                  return ExpenseCard(
+                    expense: expenses[index],
+                    onTap: () => _showExpenseDetails(expenses[index]),
+                  );
+                },
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: EmptyState(
+              icon: Icons.filter_list_off_rounded,
+              title: 'No matching expenses',
+              message: 'Try adjusting your filters',
             ),
           ),
-        ),
       ],
     );
   }
