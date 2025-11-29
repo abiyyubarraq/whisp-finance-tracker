@@ -6,6 +6,7 @@ import '../models/expense.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/modern_app_bar.dart';
 import '../config/theme.dart';
+import '../utils/currency_formatter.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -107,7 +108,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'IDR ${_formatAmount(totalSpent)}',
+                    CurrencyFormatter.formatCompact(totalSpent, 'IDR'),
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -134,22 +135,19 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
+                child: _buildMiniStat(
+                  dateLabel,
+                  '${expenses.length} transactions',
+                  Icons.calendar_today_rounded,
+                  'On $itemTotal items',
                   onTap: () => _showDateRangePicker(context),
-                  behavior: HitTestBehavior.opaque,
-                  child: _buildMiniStat(
-                    dateLabel,
-                    '${expenses.length} transactions',
-                    Icons.calendar_today_rounded,
-                    'On $itemTotal items',
-                  ),
                 ),
               ),
               SizedBox(width: 12),
               Expanded(
                 child: _buildMiniStat(
                   'Avg/Day',
-                  'IDR ${_formatAmount(avgPerDay)}',
+                  CurrencyFormatter.formatCompact(avgPerDay, 'IDR'),
                   Icons.trending_up_rounded,
                   null,
                 ),
@@ -165,9 +163,51 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     String label,
     String value,
     IconData icon,
-    String? subValue,
-  ) {
-    return Container(
+    String? subValue, {
+    VoidCallback? onTap,
+  }) {
+    final content = Row(
+      children: [
+        Icon(icon, color: Colors.white, size: 16),
+        SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                subValue ?? ' ',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: subValue != null
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : Colors.transparent,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final container = Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
@@ -177,55 +217,23 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           width: 1,
         ),
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subValue != null)
-                  Text(
-                    subValue,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: content,
     );
-  }
 
-  String _formatAmount(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
+    if (onTap != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: Colors.white.withValues(alpha: 0.1),
+          highlightColor: Colors.white.withValues(alpha: 0.05),
+          child: container,
+        ),
+      );
     }
-    return amount.toStringAsFixed(0);
+
+    return container;
   }
 
   String _getDateLabel() {
@@ -384,7 +392,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         ),
                       ),
                       Text(
-                        'IDR ${_formatAmount(entry.value)}',
+                        CurrencyFormatter.formatCompact(entry.value, 'IDR'),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

@@ -40,7 +40,6 @@ class ExpenseSummaryCard extends StatelessWidget {
                     onTap: () => _showDateRangePicker(context),
                     behavior: HitTestBehavior.opaque,
                     child: _buildMiniStat(
-                      context,
                       dateLabel,
                       '$filteredCount transactions',
                       Icons.calendar_today_rounded,
@@ -52,7 +51,6 @@ class ExpenseSummaryCard extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: _buildMiniStat(
-                    context,
                     'Average',
                     CurrencyFormatter.formatCompact(average, 'IDR'),
                     Icons.analytics_rounded,
@@ -84,7 +82,7 @@ class ExpenseSummaryCard extends StatelessWidget {
               ),
               SizedBox(height: 8),
               Text(
-                CurrencyFormatter.format(total, 'IDR'),
+                CurrencyFormatter.formatCompact(total, 'IDR'),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -107,7 +105,6 @@ class ExpenseSummaryCard extends StatelessWidget {
   }
 
   Widget _buildMiniStat(
-    BuildContext context,
     String label,
     String value,
     IconData icon, {
@@ -140,14 +137,15 @@ class ExpenseSummaryCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (subValue != null)
-                Text(
-                  subValue,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
+              Text(
+                subValue ?? ' ',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: subValue != null
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : Colors.transparent,
                 ),
+              ),
             ],
           ),
         ),
