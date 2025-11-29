@@ -22,9 +22,17 @@ class MiniStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+
     final content = Row(
       children: [
-        Icon(icon, color: Colors.white, size: 16),
+        Icon(
+          icon,
+          color: isDark ? Colors.white : primaryColor,
+          size: 16,
+        ),
         SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -34,7 +42,9 @@ class MiniStatCard extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : onSurfaceColor.withValues(alpha: 0.65),
                 ),
               ),
               SizedBox(height: 2),
@@ -43,7 +53,7 @@ class MiniStatCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: isDark ? Colors.white : onSurfaceColor,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -53,7 +63,9 @@ class MiniStatCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   color: subValue != null
-                      ? Colors.white.withValues(alpha: 0.7)
+                      ? isDark
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : onSurfaceColor.withValues(alpha: 0.6)
                       : Colors.transparent,
                 ),
               ),
@@ -66,10 +78,14 @@ class MiniStatCard extends StatelessWidget {
     final container = Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.15)
+            : Colors.white.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.35),
           width: 1,
         ),
       ),
@@ -82,8 +98,8 @@ class MiniStatCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          splashColor: Colors.white.withValues(alpha: 0.1),
-          highlightColor: Colors.white.withValues(alpha: 0.05),
+          splashColor: Colors.white.withValues(alpha: 0.15),
+          highlightColor: Colors.white.withValues(alpha: 0.08),
           child: container,
         ),
       );

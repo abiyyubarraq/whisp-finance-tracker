@@ -56,7 +56,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 16),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: _buildSummaryCard(expenses),
@@ -81,7 +80,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 Text('Failed to load analytics'),
                 SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.invalidate(expensesByDateRangeProvider(_dateRange)),
+                  onPressed: () =>
+                      ref.invalidate(expensesByDateRangeProvider(_dateRange)),
                   child: Text('Retry'),
                 ),
               ],

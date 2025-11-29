@@ -78,6 +78,10 @@ class SpendingSummaryCard extends StatelessWidget {
   }
 
   Widget _buildMainStat(BuildContext context, double total) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -89,7 +93,9 @@ class SpendingSummaryCard extends StatelessWidget {
                 'Total Spending',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.8)
+                      : onSurfaceColor.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -99,7 +105,7 @@ class SpendingSummaryCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: isDark ? Colors.white : onSurfaceColor,
                 ),
               ),
             ],
@@ -108,10 +114,16 @@ class SpendingSummaryCard extends StatelessWidget {
         Container(
           padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.2)
+                : Colors.white.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(mainIcon, color: Colors.white, size: 24),
+          child: Icon(
+            mainIcon,
+            color: isDark ? Colors.white : primaryColor,
+            size: 24,
+          ),
         ),
       ],
     );
