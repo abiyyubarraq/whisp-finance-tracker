@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/expense.dart';
 import '../../models/expense_item.dart';
+import '../../models/receipt_image.dart';
 import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
 import '../../widgets/manual_input/expense_item_form.dart';
 import '../../widgets/manual_input/expense_item_card.dart';
 import '../../widgets/manual_input/payment_source_dropdown.dart';
 import '../../widgets/manual_input/date_time_picker_field.dart';
+import '../../widgets/common/image_attachment_widget.dart';
 import '../../services/budget_service.dart';
+import '../../services/expense_service.dart';
 import '../../providers/user_data_provider.dart';
 import '../../utils/notification_helper.dart';
 
@@ -34,6 +38,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   final List<ExpenseItem> _items = [];
   bool _isLoading = false;
   bool _hasSetDefaultPaymentSource = false;
+  List<XFile> _selectedImageFiles = [];
 
   @override
   void dispose() {
@@ -56,6 +61,8 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
             _buildHeader(),
             SizedBox(height: 24),
             _buildBasicInfo(),
+            SizedBox(height: 24),
+            _buildImageAttachment(),
             SizedBox(height: 24),
             _buildItemsSection(),
             SizedBox(height: 24),
@@ -252,19 +259,42 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
           ),
         ),
       ),
-      error: (error, stack) => GlassContainer(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Failed to load payment sources',
-              style: TextStyle(fontSize: 12, color: Colors.red),
-            ),
-          ],
-        ),
-      ),
+      error: (error, stack) {
+        debugPrint('Error loading payment sources: $error');
+
+        return GlassContainer(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Failed to load payment sources',
+                style: TextStyle(fontSize: 12, color: Colors.red),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildImageAttachment() {
+    return ImageAttachmentWidget(
+      selectedFiles: _selectedImageFiles,
+      receiptImages: const [], // No uploaded images yet for new expense
+      isLoading: _isLoading,
+      onImagesSelected: (files) {
+        setState(
+          () => _selectedImageFiles = [..._selectedImageFiles, ...files],
+        );
+      },
+      onLocalFileRemoved: (index) {
+        setState(() => _selectedImageFiles.removeAt(index));
+      },
+      onUploadedImageRemoved: (_) {
+        // No uploaded images to remove for new expense
+      },
     );
   }
 
@@ -490,6 +520,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       _selectedPaymentSource = null;
       _items.clear();
       _hasSetDefaultPaymentSource = false;
+      _selectedImageFiles = [];
     });
   }
 
@@ -538,6 +569,20 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
     }
 
     try {
+      // Upload all selected images
+      List<ReceiptImage> receiptImages = [];
+      if (_selectedImageFiles.isNotEmpty) {
+        final expenseService = ExpenseService();
+        for (final file in _selectedImageFiles) {
+          final result =
+              await expenseService.uploadReceiptImage(user.uid, file);
+          receiptImages.add(ReceiptImage(
+            path: result['path']!, // Firebase Storage path (not blob URL)
+            url: result['url']!, // Download URL
+          ));
+        }
+      }
+
       final expense = Expense(
         id: '',
         createdAt: DateTime.now(),
@@ -551,6 +596,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
         paymentSource: _selectedPaymentSource!,
         currency: _currency,
         inputMethod: 'manual',
+        receiptImages: receiptImages,
         aiConfidence: 'manual',
       );
 

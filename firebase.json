@@ -1,1 +1,25 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"whisp-finance-tracker-ec012","appId":"1:762754365736:android:cbf77a293054b66807b81d","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"whisp-finance-tracker-ec012","configurations":{"android":"1:762754365736:android:cbf77a293054b66807b81d","ios":"1:762754365736:ios:3e432149947e9cb407b81d","macos":"1:762754365736:ios:3e432149947e9cb407b81d","web":"1:762754365736:web:0d11d6ceb17ff32707b81d","windows":"1:762754365736:web:54946946dabc865107b81d"}}}}}}
+{
+	"flutter": {
+		"platforms": {
+			"android": {
+				"default": {
+					"projectId": "whisp-finance-tracker",
+					"appId": "1:761962954796:android:c654671e8cc2a64c681189",
+					"fileOutput": "android/app/google-services.json"
+				}
+			},
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "whisp-finance-tracker",
+					"configurations": {
+						"android": "1:761962954796:android:c654671e8cc2a64c681189",
+						"ios": "1:761962954796:ios:2b4b04984561c881681189",
+						"macos": "1:761962954796:ios:2b4b04984561c881681189",
+						"web": "1:761962954796:web:cb21a3fe0d783bbc681189",
+						"windows": "1:761962954796:web:2b874b71c61a23c5681189"
+					}
+				}
+			}
+		}
+	}
+}

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +5,7 @@ import '../../../services/gemini_service.dart';
 import '../../../models/expense_data.dart';
 import '../../../widgets/confirm_expense_form.dart';
 import '../../../widgets/glass_container.dart';
+import '../../../widgets/common/cross_platform_image.dart';
 import '../../../config/theme.dart';
 import '../../../utils/notification_helper.dart';
 
@@ -17,7 +17,7 @@ class ImageInputTab extends ConsumerStatefulWidget {
 }
 
 class _ImageInputTabState extends ConsumerState<ImageInputTab> {
-  File? _imageFile;
+  XFile? _imageFile;
   bool _isProcessing = false;
   ExpenseData? _extractedData;
 
@@ -227,14 +227,12 @@ class _ImageInputTabState extends ConsumerState<ImageInputTab> {
   Widget _buildImagePreview() {
     return GlassContainer(
       padding: EdgeInsets.all(8),
-      child: ClipRRect(
+      child: CrossPlatformImageFromBytes(
+        imageFile: _imageFile!,
+        height: 300,
+        width: double.infinity,
+        fit: BoxFit.cover,
         borderRadius: BorderRadius.circular(16),
-        child: Image.file(
-          _imageFile!,
-          height: 300,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        ),
       ),
     );
   }
@@ -289,7 +287,7 @@ class _ImageInputTabState extends ConsumerState<ImageInputTab> {
 
     if (pickedFile != null) {
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imageFile = pickedFile;
       });
     }
   }

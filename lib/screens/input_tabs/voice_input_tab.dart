@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../services/gemini_service.dart';
@@ -372,7 +372,7 @@ class _VoiceInputTabState extends ConsumerState<VoiceInputTab> {
     try {
       final geminiService = GeminiService();
       final extractedData = await geminiService.extractFromAudio(
-        File(_audioPath!),
+        XFile(_audioPath!),
       );
 
       setState(() {

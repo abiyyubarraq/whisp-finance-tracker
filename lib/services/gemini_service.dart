@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/expense_data.dart';
 import '../config/env.dart';
 
@@ -14,7 +14,7 @@ class GeminiService {
     );
   }
 
-  Future<ExpenseData> extractFromImage(File imageFile) async {
+  Future<ExpenseData> extractFromImage(XFile imageFile) async {
     try {
       final imageBytes = await imageFile.readAsBytes();
 
@@ -60,7 +60,7 @@ Return ONLY the JSON, no additional text.
     }
   }
 
-  Future<ExpenseData> extractFromAudio(File audioFile) async {
+  Future<ExpenseData> extractFromAudio(XFile audioFile) async {
     try {
       final audioBytes = await audioFile.readAsBytes();
 

@@ -340,10 +340,14 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
         padding: EdgeInsets.all(16),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stack) => GlassContainer(
-        padding: EdgeInsets.all(16),
-        child: Text('Error loading categories'),
-      ),
+      error: (error, stack) {
+        debugPrint('Error loading categories: $error');
+
+        return GlassContainer(
+          padding: EdgeInsets.all(16),
+          child: Text('Error loading categories'),
+        );
+      },
     );
   }
 

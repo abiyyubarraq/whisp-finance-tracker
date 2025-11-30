@@ -2,15 +2,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../models/expense.dart';
 import '../models/expense_item.dart';
+import '../models/receipt_image.dart';
 import '../widgets/glass_container.dart';
 import '../config/theme.dart';
 import '../widgets/manual_input/expense_item_form.dart';
 import '../widgets/manual_input/expense_item_card.dart';
 import '../widgets/manual_input/payment_source_dropdown.dart';
 import '../widgets/manual_input/date_time_picker_field.dart';
+import '../widgets/common/image_attachment_widget.dart';
 import '../services/expense_service.dart';
 import '../services/budget_service.dart';
 import '../providers/user_data_provider.dart';
@@ -39,6 +42,11 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
   bool _isDeleting = false;
   bool _hasChanges = false;
 
+  // Multiple image handling
+  List<XFile> _newImageFiles = [];
+  List<ReceiptImage> _currentReceiptImages = [];
+  final List<ReceiptImage> _imagesToRemove = [];
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +62,9 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
     _currency = widget.expense.currency;
     _selectedPaymentSource = widget.expense.paymentSource;
     _items = List<ExpenseItem>.from(widget.expense.items);
+    _currentReceiptImages = List<ReceiptImage>.from(
+      widget.expense.receiptImages,
+    );
   }
 
   @override
@@ -110,6 +121,8 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
                           _buildHeader(),
                           SizedBox(height: 24),
                           _buildBasicInfo(),
+                          SizedBox(height: 24),
+                          _buildImageAttachment(),
                           SizedBox(height: 24),
                           _buildItemsSection(),
                           SizedBox(height: 24),
@@ -320,6 +333,31 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageAttachment() {
+    // Filter out images marked for removal
+    final displayedReceiptImages = _currentReceiptImages
+        .where((receiptImage) => !_imagesToRemove.contains(receiptImage))
+        .toList();
+
+    return ImageAttachmentWidget(
+      selectedFiles: _newImageFiles,
+      receiptImages: displayedReceiptImages,
+      isLoading: _isLoading,
+      onImagesSelected: (files) {
+        setState(() => _newImageFiles = [..._newImageFiles, ...files]);
+        _markAsChanged();
+      },
+      onLocalFileRemoved: (index) {
+        setState(() => _newImageFiles.removeAt(index));
+        _markAsChanged();
+      },
+      onUploadedImageRemoved: (receiptImage) {
+        setState(() => _imagesToRemove.add(receiptImage));
+        _markAsChanged();
+      },
     );
   }
 
@@ -705,6 +743,29 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
     }
 
     try {
+      final expenseService = ExpenseService();
+
+      // Start with existing images (minus ones marked for removal)
+      List<ReceiptImage> finalReceiptImages = _currentReceiptImages
+          .where((receiptImage) => !_imagesToRemove.contains(receiptImage))
+          .toList();
+
+      // Delete images marked for removal from storage
+      for (final receiptImage in _imagesToRemove) {
+        await expenseService.deleteReceiptImage(receiptImage.path);
+      }
+
+      // Upload new images
+      for (final file in _newImageFiles) {
+        final result = await expenseService.uploadReceiptImage(user.uid, file);
+        finalReceiptImages.add(
+          ReceiptImage(
+            path: result['path']!, // Firebase Storage path (not blob URL)
+            url: result['url']!, // Download URL
+          ),
+        );
+      }
+
       final updatedExpense = widget.expense.copyWith(
         spentAt: _spentAt,
         spentPlace: _spentPlaceController.text.trim(),
@@ -715,10 +776,10 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
         totalValue: Expense.calculateTotalValue(_items),
         paymentSource: _selectedPaymentSource,
         currency: _currency,
+        receiptImages: finalReceiptImages,
         isReviewed: true,
       );
 
-      final expenseService = ExpenseService();
       await expenseService.updateExpense(user.uid, updatedExpense);
 
       // Check budget alerts
@@ -765,6 +826,12 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
 
     try {
       final expenseService = ExpenseService();
+
+      // Delete all associated images from storage
+      for (final receiptImage in widget.expense.receiptImages) {
+        await expenseService.deleteReceiptImage(receiptImage.path);
+      }
+
       await expenseService.deleteExpense(user.uid, widget.expense.id);
 
       if (mounted) {

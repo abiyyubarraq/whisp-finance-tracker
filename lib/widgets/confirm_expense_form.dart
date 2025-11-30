@@ -1,19 +1,20 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../models/expense.dart';
 import '../models/expense_data.dart';
 import '../models/expense_item.dart';
+import '../models/receipt_image.dart';
 import '../services/budget_service.dart';
+import '../services/expense_service.dart';
 import '../widgets/glass_container.dart';
 import '../config/theme.dart';
 
 class ConfirmExpenseForm extends ConsumerStatefulWidget {
   final ExpenseData initialData;
-  final File? imageFile;
+  final XFile? imageFile;
   final Function(Expense) onSave;
   final VoidCallback onCancel;
 
@@ -46,15 +47,15 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
     _spentPlaceController = TextEditingController(
       text: widget.initialData.spentPlace,
     );
-    _descController = TextEditingController(text: widget.initialData.desc ?? '');
+    _descController = TextEditingController(
+      text: widget.initialData.desc ?? '',
+    );
     // Calculate total from items
     final totalValue = widget.initialData.items.fold<double>(
       0,
       (sum, item) => sum + item.value,
     );
-    _valueController = TextEditingController(
-      text: totalValue.toString(),
-    );
+    _valueController = TextEditingController(text: totalValue.toString());
     _spentAt = widget.initialData.spentAt;
     _paymentSource = widget.initialData.paymentSource;
     // Use first item's spentType as default, or 'other' if no items
@@ -302,16 +303,18 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
       final user = ref.read(authStateProvider).value;
       if (user == null) throw Exception('User not authenticated');
 
-      String? imageUrl;
-
-      // Upload image to Firebase Storage if present
+      // Upload image to Firebase Storage if present using ExpenseService
+      ReceiptImage? receiptImage;
       if (widget.imageFile != null) {
-        final storageRef = FirebaseStorage.instance.ref().child(
-          'users/${user.uid}/receipts/${DateTime.now().millisecondsSinceEpoch}.jpg',
+        final expenseService = ExpenseService();
+        final result = await expenseService.uploadReceiptImage(
+          user.uid,
+          widget.imageFile!,
         );
-
-        await storageRef.putFile(widget.imageFile!);
-        imageUrl = await storageRef.getDownloadURL();
+        receiptImage = ReceiptImage(
+          path: result['path']!, // Firebase Storage path (not blob URL)
+          url: result['url']!, // Download URL
+        );
       }
 
       // Use items from initialData, or create a single item if empty
@@ -320,7 +323,9 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
         // Create a single item from the form data
         items = [
           ExpenseItem(
-            itemName: _descController.text.isEmpty ? 'Expense' : _descController.text,
+            itemName: _descController.text.isEmpty
+                ? 'Expense'
+                : _descController.text,
             spentType: _spentType,
             quantity: 1,
             cost: double.parse(_valueController.text),
@@ -340,7 +345,7 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
         paymentSource: _paymentSource.isEmpty ? 'Cash' : _paymentSource,
         currency: _currency,
         inputMethod: widget.imageFile != null ? 'image' : 'voice',
-        imageUrl: imageUrl,
+        receiptImages: receiptImage != null ? [receiptImage] : [],
         aiConfidence: widget.initialData.confidence,
         isReviewed: true,
       );

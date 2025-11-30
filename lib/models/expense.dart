@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'expense_item.dart';
+import 'receipt_image.dart';
 
 class Expense {
   final String id;
@@ -12,7 +13,8 @@ class Expense {
   final String paymentSource;
   final String currency;
   final String inputMethod;
-  final String? imageUrl;
+  final List<ReceiptImage>
+  receiptImages; // Multiple receipt images with path and URL
   final String aiConfidence; // high, medium, low, manual
   final Map<String, dynamic>? rawAiResponse;
   final bool isReviewed;
@@ -28,7 +30,7 @@ class Expense {
     required this.paymentSource,
     required this.currency,
     required this.inputMethod,
-    this.imageUrl,
+    this.receiptImages = const [],
     this.aiConfidence = 'manual',
     this.rawAiResponse,
     this.isReviewed = false,
@@ -47,6 +49,15 @@ class Expense {
           .toList();
     }
 
+    // Parse receiptImages - handle new structure and backward compatibility
+    List<ReceiptImage> receiptImagesList = [];
+    if (data['receiptImages'] != null && data['receiptImages'] is List) {
+      // New structure: array of objects with path and url
+      receiptImagesList = (data['receiptImages'] as List)
+          .map((item) => ReceiptImage.fromMap(item as Map<String, dynamic>))
+          .toList();
+    }
+
     return Expense(
       id: doc.id,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
@@ -58,7 +69,7 @@ class Expense {
       paymentSource: data['paymentSource'] ?? '',
       currency: data['currency'] ?? 'IDR',
       inputMethod: data['inputMethod'] ?? 'manual',
-      imageUrl: data['imageUrl'],
+      receiptImages: receiptImagesList,
       aiConfidence: data['aiConfidence'] ?? 'manual',
       rawAiResponse: data['rawAiResponse'],
       isReviewed: data['isReviewed'] ?? false,
@@ -76,7 +87,8 @@ class Expense {
       'paymentSource': paymentSource,
       'currency': currency,
       'inputMethod': inputMethod,
-      if (imageUrl != null) 'imageUrl': imageUrl,
+      if (receiptImages.isNotEmpty)
+        'receiptImages': receiptImages.map((img) => img.toMap()).toList(),
       'aiConfidence': aiConfidence,
       if (rawAiResponse != null) 'rawAiResponse': rawAiResponse,
       'isReviewed': isReviewed,
@@ -105,7 +117,7 @@ class Expense {
     String? paymentSource,
     String? currency,
     String? inputMethod,
-    String? imageUrl,
+    List<ReceiptImage>? receiptImages,
     String? aiConfidence,
     Map<String, dynamic>? rawAiResponse,
     bool? isReviewed,
@@ -121,7 +133,7 @@ class Expense {
       paymentSource: paymentSource ?? this.paymentSource,
       currency: currency ?? this.currency,
       inputMethod: inputMethod ?? this.inputMethod,
-      imageUrl: imageUrl ?? this.imageUrl,
+      receiptImages: receiptImages ?? this.receiptImages,
       aiConfidence: aiConfidence ?? this.aiConfidence,
       rawAiResponse: rawAiResponse ?? this.rawAiResponse,
       isReviewed: isReviewed ?? this.isReviewed,
