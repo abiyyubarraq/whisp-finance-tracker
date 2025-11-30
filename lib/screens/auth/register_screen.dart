@@ -91,7 +91,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         'name': defaultPaymentSources[i],
         'isActive': true,
         'createdAt': DateTime.now(),
-        'order': i,
+        'isDefault': defaultPaymentSources[i] == 'Qris' ? true : false,
       });
     }
 
@@ -108,7 +108,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         'icon': defaultSpentTypes[i]['icon'],
         'isActive': true,
         'createdAt': DateTime.now(),
-        'order': i,
+        'isDefault': defaultSpentTypes[i]['name'] == 'Food' ? true : false,
       });
     }
 

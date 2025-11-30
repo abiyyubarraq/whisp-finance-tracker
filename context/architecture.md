@@ -869,27 +869,34 @@ extension DateTimeExtensions on DateTime {
 // Constants
 class AppConstants {
   // Default payment sources
-  static const List<Map<String, dynamic>> defaultPaymentSources = [
-    {'name': 'Cash', 'order': 0},
-    {'name': 'Debit Card', 'order': 1},
-    {'name': 'Credit Card', 'order': 2},
-    {'name': 'E-Wallet', 'order': 3},
+  static const List<String> defaultPaymentSources = [
+    'Cash',
+    'Debit Card',
+    'Credit Card',
+    'E-Wallet',
   ];
 
   // Default spent types
   static const List<Map<String, dynamic>> defaultSpentTypes = [
-    {'name': 'Food & Dining', 'color': 'FF5733', 'icon': 'restaurant', 'order': 0},
-    {'name': 'Transportation', 'color': '3498DB', 'icon': 'directions_car', 'order': 1},
-    {'name': 'Shopping', 'color': 'E74C3C', 'icon': 'shopping_bag', 'order': 2},
-    {'name': 'Entertainment', 'color': '9B59B6', 'icon': 'movie', 'order': 3},
-    {'name': 'Bills & Utilities', 'color': '1ABC9C', 'icon': 'receipt', 'order': 4},
-    {'name': 'Health & Fitness', 'color': '2ECC71', 'icon': 'fitness_center', 'order': 5},
-    {'name': 'Education', 'color': 'F39C12', 'icon': 'school', 'order': 6},
-    {'name': 'Others', 'color': '95A5A6', 'icon': 'more_horiz', 'order': 7},
+    {'name': 'Food & Dining', 'color': 'FF5733', 'icon': 'restaurant'},
+    {'name': 'Transportation', 'color': '3498DB', 'icon': 'directions_car'},
+    {'name': 'Shopping', 'color': 'E74C3C', 'icon': 'shopping_bag'},
+    {'name': 'Entertainment', 'color': '9B59B6', 'icon': 'movie'},
+    {'name': 'Bills & Utilities', 'color': '1ABC9C', 'icon': 'receipt'},
+    {'name': 'Health & Fitness', 'color': '2ECC71', 'icon': 'fitness_center'},
+    {'name': 'Education', 'color': 'F39C12', 'icon': 'school'},
+    {'name': 'Others', 'color': '95A5A6', 'icon': 'more_horiz'},
   ];
 
   // Currency options
-  static const List<String> supportedCurrencies = ['IDR', 'USD', 'EUR', 'SGD'];
+  static const List<String> supportedCurrencies = [
+  'IDR',
+  'USD',
+  'EUR',
+  'GBP',
+  'JPY',
+  'SGD',
+];
 
   // Gemini prompts
   static const String receiptExtractionPrompt = '''
@@ -1122,15 +1129,24 @@ Root Collection: users/
   Document: {userId}
     Subcollection: expenses/
       Document: {expenseId}
-        Fields: createdAt, spentAt, spentPlace, items, totalValue, etc.
+        Fields: createdAt, spentAt, spentPlace, items, totalValue, paymentSource,
+                currency, inputMethod, imageUrl, receiptImages
 
     Subcollection: paymentSources/
       Document: {sourceId}
-        Fields: name, isActive, order
+        Fields: name, isActive, createdAt
 
     Subcollection: spentTypes/
       Document: {typeId}
-        Fields: name, color, icon, isActive, order
+        Fields: name, color, icon, isActive, createdAt
+
+    Subcollection: placeNames/
+      Document: {placeId}
+        Fields: name, isActive, createdAt
+
+    Subcollection: itemNames/
+      Document: {itemId}
+        Fields: name, isActive, createdAt
 
     Subcollection: budgets/
       Document: {budgetId}

@@ -32,6 +32,7 @@ class SpentTypeItem extends StatelessWidget {
                 _buildIcon(context),
                 SizedBox(width: 16),
                 _buildInfo(context),
+                _buildDefaultButton(context),
                 _buildActions(context),
               ],
             ),
@@ -77,6 +78,22 @@ class SpentTypeItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDefaultButton(BuildContext context) {
+    return IconButton(
+      icon: Icon(
+        spentType.isDefault ? Icons.star_rounded : Icons.star_border_rounded,
+        size: 20,
+      ),
+      onPressed: spentType.isDefault
+          ? null
+          : () => SpentTypeService.setDefault(context, userId, spentType),
+      color: spentType.isDefault
+          ? Colors.amber
+          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+      tooltip: spentType.isDefault ? 'Default' : 'Set as default',
     );
   }
 

@@ -13,18 +13,6 @@ class PaymentSourceService {
     String name,
   ) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('paymentSources')
-          .orderBy('order', descending: true)
-          .limit(1)
-          .get();
-
-      final nextOrder = snapshot.docs.isEmpty
-          ? 0
-          : (snapshot.docs.first.data()['order'] as int) + 1;
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
@@ -32,8 +20,8 @@ class PaymentSourceService {
           .add({
             'name': name,
             'isActive': true,
+            'isDefault': false,
             'createdAt': DateTime.now(),
-            'order': nextOrder,
           });
 
       if (context.mounted) {
@@ -50,6 +38,41 @@ class PaymentSourceService {
         );
       }
     }
+  }
+
+  /// Adds a new payment source without notification (for auto-add during expense save)
+  static Future<void> addSilent(String userId, String name) async {
+    try {
+      // Check if already exists (case-insensitive)
+      final exists = await _existsCaseInsensitive(userId, name);
+      if (exists) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('paymentSources')
+          .add({
+            'name': name,
+            'isActive': true,
+            'isDefault': false,
+            'createdAt': DateTime.now(),
+          });
+    } catch (e) {
+      debugPrint('Error adding payment source silently: $e');
+    }
+  }
+
+  /// Check if payment source exists (case-insensitive)
+  static Future<bool> _existsCaseInsensitive(String userId, String name) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('paymentSources')
+        .get();
+
+    return snapshot.docs.any(
+      (doc) => (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
+    );
   }
 
   static Future<void> update(
@@ -71,6 +94,56 @@ class PaymentSourceService {
         NotificationHelper.showSuccess(
           context,
           'Payment source updated successfully',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        NotificationHelper.showError(
+          context,
+          'Error: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  /// Sets a payment source as default, unsetting all others
+  static Future<void> setDefault(
+    BuildContext context,
+    String userId,
+    PaymentSource source,
+  ) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch();
+
+      // Get all payment sources
+      final snapshot = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('paymentSources')
+          .get();
+
+      // Unset all defaults
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {'isDefault': false});
+      }
+
+      // Set this one as default
+      batch.update(
+        firestore
+            .collection('users')
+            .doc(userId)
+            .collection('paymentSources')
+            .doc(source.id),
+        {'isDefault': true},
+      );
+
+      await batch.commit();
+
+      if (context.mounted) {
+        NotificationHelper.showSuccess(
+          context,
+          'Default payment source updated',
         );
       }
     } catch (e) {

@@ -12,13 +12,28 @@ import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
 import '../../widgets/manual_input/expense_item_form.dart';
 import '../../widgets/manual_input/expense_item_card.dart';
-import '../../widgets/manual_input/payment_source_dropdown.dart';
+import '../../widgets/manual_input/payment_source_field.dart';
+import '../../widgets/manual_input/place_name_field.dart';
 import '../../widgets/manual_input/date_time_picker_field.dart';
 import '../../widgets/common/image_attachment_widget.dart';
 import '../../services/budget_service.dart';
 import '../../services/expense_service.dart';
+import '../../services/payment_source_service.dart';
+import '../../services/place_name_service.dart';
+import '../../services/spent_type_service.dart';
+import '../../services/item_name_service.dart';
 import '../../providers/user_data_provider.dart';
 import '../../utils/notification_helper.dart';
+import '../../utils/constants.dart';
+
+/// Helper class for tracking pending new items to be added
+class _PendingNewItem {
+  final String name;
+  final String? color;
+  final String? icon;
+
+  _PendingNewItem({required this.name, this.color, this.icon});
+}
 
 class ManualInputTab extends ConsumerStatefulWidget {
   const ManualInputTab({super.key});
@@ -31,19 +46,34 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   final _formKey = GlobalKey<FormState>();
   final _spentPlaceController = TextEditingController();
   final _descController = TextEditingController();
+  final _paymentSourceController = TextEditingController();
 
   DateTime _spentAt = DateTime.now();
   String _currency = 'IDR';
-  String? _selectedPaymentSource;
   final List<ExpenseItem> _items = [];
   bool _isLoading = false;
   bool _hasSetDefaultPaymentSource = false;
   List<XFile> _selectedImageFiles = [];
 
+  // Flags for tracking new items to be auto-added
+  bool _isShouldAddPaymentSource = false;
+  bool _isShouldAddPlaceName = false;
+
+  // Pending new items from expense items
+  final List<_PendingNewItem> _pendingNewSpentTypes = [];
+  final List<_PendingNewItem> _pendingNewItemNames = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _hasSetDefaultPaymentSource = _paymentSourceController.text.isNotEmpty;
+  }
+
   @override
   void dispose() {
     _spentPlaceController.dispose();
     _descController.dispose();
+    _paymentSourceController.dispose();
     super.dispose();
   }
 
@@ -107,175 +137,152 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
 
   Widget _buildBasicInfo() {
     final paymentSourcesAsync = ref.watch(paymentSourcesProvider(false));
+    final placeNamesAsync = ref.watch(placeNamesProvider(false));
 
+    // Set default payment source
     paymentSourcesAsync.whenData((sources) {
       if (!_hasSetDefaultPaymentSource &&
-          _selectedPaymentSource == null &&
+          _paymentSourceController.text.isEmpty &&
           sources.isNotEmpty &&
           mounted) {
-        setState(() {
-          _hasSetDefaultPaymentSource = true;
-          _selectedPaymentSource = sources.first.name;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _paymentSourceController.text.isEmpty) {
+            // Find default payment source, or use first if none is default
+            final defaultSource = sources.firstWhere(
+              (s) => s.isDefault,
+              orElse: () => sources.first,
+            );
+            setState(() {
+              _hasSetDefaultPaymentSource = true;
+              _paymentSourceController.text = defaultSource.name;
+            });
+          }
         });
       }
     });
 
-    ref.listen(paymentSourcesProvider(false), (previous, next) {
-      next.whenData((sources) {
-        if (!mounted) return;
-
-        // Check if selected payment source still exists in the sources list
-        if (_selectedPaymentSource != null) {
-          final stillExists = sources.any(
-            (s) => s.name == _selectedPaymentSource,
-          );
-          if (!stillExists) {
-            // Reset to first available source or null
-            setState(() {
-              _selectedPaymentSource = sources.isNotEmpty
-                  ? sources.first.name
-                  : null;
-            });
-            return;
-          }
-        }
-
-        // Set default payment source if not set yet
-        if (!_hasSetDefaultPaymentSource &&
-            _selectedPaymentSource == null &&
-            sources.isNotEmpty) {
-          setState(() {
-            _hasSetDefaultPaymentSource = true;
-            _selectedPaymentSource = sources.first.name;
-          });
-        }
-      });
-    });
-
     return paymentSourcesAsync.when(
       data: (sources) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DateTimePickerField(
-              selectedDateTime: _spentAt,
-              onDateTimeChanged: (dateTime) {
-                setState(() => _spentAt = dateTime);
-              },
-            ),
-            SizedBox(height: 16),
-            GlassContainer(
-              padding: EdgeInsets.zero,
-              child: TextFormField(
-                controller: _spentPlaceController,
-                decoration: InputDecoration(
-                  hintText: 'Place/Vendor (e.g., Starbucks, Walmart)',
-                  prefixIcon: Icon(Icons.store_rounded, size: 20),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a place';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            SizedBox(height: 16),
-            GlassContainer(
-              padding: EdgeInsets.zero,
-              child: TextFormField(
-                controller: _descController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: 'Transaction description (optional)',
-                  prefixIcon: Icon(Icons.description_rounded, size: 20),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 16),
-            Row(
+        return placeNamesAsync.when(
+          data: (placeNames) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: 2,
-                  child: PaymentSourceDropdown(
-                    selectedPaymentSource: _selectedPaymentSource,
-                    sources: sources,
-                    onChanged: (value) {
-                      setState(() => _selectedPaymentSource = value);
-                    },
-                  ),
+                DateTimePickerField(
+                  selectedDateTime: _spentAt,
+                  onDateTimeChanged: (dateTime) {
+                    setState(() => _spentAt = dateTime);
+                  },
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: GlassContainer(
-                    padding: EdgeInsets.zero,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _currency,
-                      decoration: InputDecoration(
-                        hintText: 'Currency',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
+                SizedBox(height: 16),
+                PlaceNameField(
+                  controller: _spentPlaceController,
+                  placeNames: placeNames,
+                  onIsNewChanged: (isNew) {
+                    setState(() => _isShouldAddPlaceName = isNew);
+                  },
+                ),
+                SizedBox(height: 16),
+                GlassContainer(
+                  padding: EdgeInsets.zero,
+                  child: TextFormField(
+                    controller: _descController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: 'Transaction description (optional)',
+                      prefixIcon: Icon(Icons.description_rounded, size: 20),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
                       ),
-                      items: ['IDR', 'USD', 'EUR', 'GBP', 'JPY'].map((
-                        currency,
-                      ) {
-                        return DropdownMenuItem(
-                          value: currency,
-                          child: Text(currency),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _currency = value!);
-                      },
                     ),
                   ),
                 ),
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: PaymentSourceField(
+                        controller: _paymentSourceController,
+                        sources: sources,
+                        onIsNewChanged: (isNew) {
+                          setState(() => _isShouldAddPaymentSource = isNew);
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: GlassContainer(
+                        padding: EdgeInsets.zero,
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: _currency,
+                          decoration: InputDecoration(
+                            hintText: 'Currency',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                          ),
+                          items: currencyOptions.map((currency) {
+                            return DropdownMenuItem(
+                              value: currency,
+                              child: Text(currency),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() => _currency = value!);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+          },
+          loading: () => _buildLoadingPlaceholder(),
+          error: (error, stack) {
+            debugPrint('Error loading payment sources: $error');
+
+            return _buildErrorPlaceholder('Failed to load payment sources');
+          },
         );
       },
-      loading: () => GlassContainer(
-        padding: EdgeInsets.all(16),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      ),
+      loading: () => _buildLoadingPlaceholder(),
       error: (error, stack) {
         debugPrint('Error loading payment sources: $error');
-
-        return GlassContainer(
-          padding: EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.red, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Failed to load payment sources',
-                style: TextStyle(fontSize: 12, color: Colors.red),
-              ),
-            ],
-          ),
-        );
+        return _buildErrorPlaceholder('Failed to load payment sources');
       },
+    );
+  }
+
+  Widget _buildLoadingPlaceholder() {
+    return GlassContainer(
+      padding: EdgeInsets.all(16),
+      child: Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorPlaceholder(String message) {
+    return GlassContainer(
+      padding: EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red, size: 20),
+          SizedBox(width: 8),
+          Text(message, style: TextStyle(fontSize: 12, color: Colors.red)),
+        ],
+      ),
     );
   }
 
@@ -488,8 +495,44 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ExpenseItemForm(
-        onSave: (item) {
-          setState(() => _items.add(item));
+        onSave: (result) {
+          setState(() {
+            _items.add(result.item);
+
+            // Track pending new spent type
+            if (result.isShouldAddSpentType &&
+                result.newSpentTypeName != null) {
+              // Check if not already pending
+              final alreadyPending = _pendingNewSpentTypes.any(
+                (p) =>
+                    p.name.toLowerCase() ==
+                    result.newSpentTypeName!.toLowerCase(),
+              );
+              if (!alreadyPending) {
+                _pendingNewSpentTypes.add(
+                  _PendingNewItem(
+                    name: result.newSpentTypeName!,
+                    color: '#6B7280',
+                    icon: 'more_horiz',
+                  ),
+                );
+              }
+            }
+
+            // Track pending new item name
+            if (result.isShouldAddItemName && result.newItemName != null) {
+              // Check if not already pending
+              final alreadyPending = _pendingNewItemNames.any(
+                (p) =>
+                    p.name.toLowerCase() == result.newItemName!.toLowerCase(),
+              );
+              if (!alreadyPending) {
+                _pendingNewItemNames.add(
+                  _PendingNewItem(name: result.newItemName!),
+                );
+              }
+            }
+          });
           Navigator.pop(context);
         },
       ),
@@ -503,8 +546,42 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       backgroundColor: Colors.transparent,
       builder: (context) => ExpenseItemForm(
         item: item,
-        onSave: (updatedItem) {
-          setState(() => _items[index] = updatedItem);
+        onSave: (result) {
+          setState(() {
+            _items[index] = result.item;
+
+            // Track pending new spent type
+            if (result.isShouldAddSpentType &&
+                result.newSpentTypeName != null) {
+              final alreadyPending = _pendingNewSpentTypes.any(
+                (p) =>
+                    p.name.toLowerCase() ==
+                    result.newSpentTypeName!.toLowerCase(),
+              );
+              if (!alreadyPending) {
+                _pendingNewSpentTypes.add(
+                  _PendingNewItem(
+                    name: result.newSpentTypeName!,
+                    color: '#6B7280',
+                    icon: 'more_horiz',
+                  ),
+                );
+              }
+            }
+
+            // Track pending new item name
+            if (result.isShouldAddItemName && result.newItemName != null) {
+              final alreadyPending = _pendingNewItemNames.any(
+                (p) =>
+                    p.name.toLowerCase() == result.newItemName!.toLowerCase(),
+              );
+              if (!alreadyPending) {
+                _pendingNewItemNames.add(
+                  _PendingNewItem(name: result.newItemName!),
+                );
+              }
+            }
+          });
           Navigator.pop(context);
         },
       ),
@@ -515,12 +592,16 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
     setState(() {
       _spentPlaceController.clear();
       _descController.clear();
+      _paymentSourceController.clear();
       _spentAt = DateTime.now();
       _currency = 'IDR';
-      _selectedPaymentSource = null;
       _items.clear();
       _hasSetDefaultPaymentSource = false;
       _selectedImageFiles = [];
+      _isShouldAddPaymentSource = false;
+      _isShouldAddPlaceName = false;
+      _pendingNewSpentTypes.clear();
+      _pendingNewItemNames.clear();
     });
   }
 
@@ -555,8 +636,9 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       return;
     }
 
-    if (_selectedPaymentSource == null) {
-      NotificationHelper.showWarning(context, 'Please select a payment source');
+    final paymentSource = _paymentSourceController.text.trim();
+    if (paymentSource.isEmpty) {
+      NotificationHelper.showWarning(context, 'Please enter a payment source');
       return;
     }
 
@@ -569,17 +651,44 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
     }
 
     try {
+      // Auto-add new payment source if needed
+      if (_isShouldAddPaymentSource && paymentSource.isNotEmpty) {
+        await PaymentSourceService.addSilent(user.uid, paymentSource);
+      }
+
+      // Auto-add new place name if needed
+      final placeName = _spentPlaceController.text.trim();
+      if (_isShouldAddPlaceName && placeName.isNotEmpty) {
+        await PlaceNameService.addSilent(user.uid, placeName);
+      }
+
+      // Auto-add pending new spent types
+      for (final pending in _pendingNewSpentTypes) {
+        await SpentTypeService.addSilent(
+          user.uid,
+          pending.name,
+          color: pending.color ?? '#6B7280',
+          icon: pending.icon ?? 'more_horiz',
+        );
+      }
+
+      // Auto-add pending new item names
+      for (final pending in _pendingNewItemNames) {
+        await ItemNameService.addSilent(user.uid, pending.name);
+      }
+
       // Upload all selected images
       List<ReceiptImage> receiptImages = [];
       if (_selectedImageFiles.isNotEmpty) {
         final expenseService = ExpenseService();
         for (final file in _selectedImageFiles) {
-          final result =
-              await expenseService.uploadReceiptImage(user.uid, file);
-          receiptImages.add(ReceiptImage(
-            path: result['path']!, // Firebase Storage path (not blob URL)
-            url: result['url']!, // Download URL
-          ));
+          final result = await expenseService.uploadReceiptImage(
+            user.uid,
+            file,
+          );
+          receiptImages.add(
+            ReceiptImage(path: result['path']!, url: result['url']!),
+          );
         }
       }
 
@@ -587,13 +696,13 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
         id: '',
         createdAt: DateTime.now(),
         spentAt: _spentAt,
-        spentPlace: _spentPlaceController.text.trim(),
+        spentPlace: placeName,
         desc: _descController.text.trim().isEmpty
             ? null
             : _descController.text.trim(),
         items: _items,
         totalValue: Expense.calculateTotalValue(_items),
-        paymentSource: _selectedPaymentSource!,
+        paymentSource: paymentSource,
         currency: _currency,
         inputMethod: 'manual',
         receiptImages: receiptImages,

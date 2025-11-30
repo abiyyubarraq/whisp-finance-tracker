@@ -1,3 +1,4 @@
+// lib/screens/item_names_management_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
@@ -5,19 +6,19 @@ import '../providers/user_data_provider.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/modern_app_bar.dart';
 import '../config/theme.dart';
-import '../widgets/profile/spent_type_item.dart';
-import '../widgets/profile/spent_type_dialog.dart';
+import '../widgets/profile/item_name_item.dart';
+import '../widgets/profile/item_name_dialog.dart';
 
-class SpentTypesManagementScreen extends ConsumerStatefulWidget {
-  const SpentTypesManagementScreen({super.key});
+class ItemNamesManagementScreen extends ConsumerStatefulWidget {
+  const ItemNamesManagementScreen({super.key});
 
   @override
-  ConsumerState<SpentTypesManagementScreen> createState() =>
-      _SpentTypesManagementScreenState();
+  ConsumerState<ItemNamesManagementScreen> createState() =>
+      _ItemNamesManagementScreenState();
 }
 
-class _SpentTypesManagementScreenState
-    extends ConsumerState<SpentTypesManagementScreen> {
+class _ItemNamesManagementScreenState
+    extends ConsumerState<ItemNamesManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -129,7 +130,7 @@ class _SpentTypesManagementScreenState
       children: [
         PreferredSize(
           preferredSize: Size.fromHeight(80),
-          child: ModernAppBar(title: 'Spent Types', showBackButton: true),
+          child: ModernAppBar(title: 'Item Names', showBackButton: true),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -141,9 +142,9 @@ class _SpentTypesManagementScreenState
                 SizedBox(height: 16),
                 _buildHeader(context),
                 SizedBox(height: 16),
-                _buildTypesList(context, userId),
+                _buildItemNamesList(context, userId),
                 SizedBox(height: 24),
-                _buildAddSpentTypeButton(context, userId),
+                _buildAddItemNameButton(context, userId),
                 SizedBox(height: 24),
               ],
             ),
@@ -161,7 +162,7 @@ class _SpentTypesManagementScreenState
         child: TextField(
           controller: _searchController,
           decoration: InputDecoration(
-            hintText: 'Search spent types...',
+            hintText: 'Search item names...',
             prefixIcon: Icon(Icons.search_rounded, size: 20),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
@@ -179,7 +180,7 @@ class _SpentTypesManagementScreenState
     );
   }
 
-  Widget _buildAddSpentTypeButton(BuildContext context, String userId) {
+  Widget _buildAddItemNameButton(BuildContext context, String userId) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -199,7 +200,7 @@ class _SpentTypesManagementScreenState
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => showSpentTypeDialog(context, userId),
+            onTap: () => showItemNameDialog(context, userId),
             borderRadius: BorderRadius.circular(16),
             child: Center(
               child: Row(
@@ -208,7 +209,7 @@ class _SpentTypesManagementScreenState
                   Icon(Icons.add_rounded, color: Colors.white),
                   SizedBox(width: 8),
                   Text(
-                    'Add Spent Type',
+                    'Add Item Name',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -233,7 +234,7 @@ class _SpentTypesManagementScreenState
           Padding(
             padding: EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
-              'Spent Types',
+              'Item Names',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -249,24 +250,24 @@ class _SpentTypesManagementScreenState
     );
   }
 
-  Widget _buildTypesList(BuildContext context, String userId) {
-    final typesAsync = ref.watch(spentTypesProvider(true));
+  Widget _buildItemNamesList(BuildContext context, String userId) {
+    final itemNamesAsync = ref.watch(itemNamesProvider(true));
 
-    return typesAsync.when(
-      data: (types) {
-        if (types.isEmpty) {
+    return itemNamesAsync.when(
+      data: (itemNames) {
+        if (itemNames.isEmpty) {
           return _buildEmptyState(context);
         }
 
-        // Filter types based on search query
-        final filteredTypes = _searchQuery.isEmpty
-            ? types
-            : types
-                .where(
-                    (type) => type.name.toLowerCase().contains(_searchQuery))
+        // Filter item names based on search query
+        final filteredItemNames = _searchQuery.isEmpty
+            ? itemNames
+            : itemNames
+                .where((itemName) =>
+                    itemName.name.toLowerCase().contains(_searchQuery))
                 .toList();
 
-        if (filteredTypes.isEmpty) {
+        if (filteredItemNames.isEmpty) {
           return _buildNoResultsState(context);
         }
 
@@ -275,8 +276,8 @@ class _SpentTypesManagementScreenState
           child: GlassContainer(
             padding: EdgeInsets.all(8),
             child: Column(
-              children: filteredTypes.map((type) {
-                return SpentTypeItem(userId: userId, spentType: type);
+              children: filteredItemNames.map((itemName) {
+                return ItemNameItem(userId: userId, itemName: itemName);
               }).toList(),
             ),
           ),
@@ -289,8 +290,8 @@ class _SpentTypesManagementScreenState
         ),
       ),
       error: (error, stackTrace) {
-        debugPrint('Error loading spent types: $error');
-        return Center(child: Text('Error loading spent types'));
+        debugPrint('Error loading item names: $error');
+        return Center(child: Text('Error loading item names'));
       },
     );
   }
@@ -302,7 +303,7 @@ class _SpentTypesManagementScreenState
         padding: EdgeInsets.all(16),
         child: Center(
           child: Text(
-            'No spent types yet',
+            'No item names yet',
             style: TextStyle(
               color: Theme.of(
                 context,

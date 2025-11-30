@@ -1,18 +1,18 @@
-// lib/widgets/profile/payment_source_item.dart
+// lib/widgets/profile/item_name_item.dart
 import 'package:flutter/material.dart';
-import '../../models/payment_source.dart';
+import '../../models/item_name.dart';
 import '../../config/theme.dart';
-import 'payment_source_dialog.dart';
-import '../../services/payment_source_service.dart';
+import 'item_name_dialog.dart';
+import '../../services/item_name_service.dart';
 
-class PaymentSourceItem extends StatelessWidget {
+class ItemNameItem extends StatelessWidget {
   final String userId;
-  final PaymentSource source;
+  final ItemName itemName;
 
-  const PaymentSourceItem({
+  const ItemNameItem({
     super.key,
     required this.userId,
-    required this.source,
+    required this.itemName,
   });
 
   @override
@@ -22,7 +22,7 @@ class PaymentSourceItem extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => showPaymentSourceDialog(context, userId, source: source),
+          onTap: () => showItemNameDialog(context, userId, itemName: itemName),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: EdgeInsets.all(12),
@@ -31,7 +31,6 @@ class PaymentSourceItem extends StatelessWidget {
                 _buildIcon(context),
                 SizedBox(width: 16),
                 _buildInfo(context),
-                _buildDefaultButton(context),
                 _buildActions(context),
               ],
             ),
@@ -53,7 +52,7 @@ class PaymentSourceItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
-        Icons.account_balance_wallet_rounded,
+        Icons.shopping_bag_rounded,
         color: Colors.white,
         size: 20,
       ),
@@ -66,12 +65,12 @@ class PaymentSourceItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            source.name,
+            itemName.name,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 2),
           Text(
-            source.isActive ? 'Active' : 'Inactive',
+            itemName.isActive ? 'Active' : 'Inactive',
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(
@@ -84,22 +83,6 @@ class PaymentSourceItem extends StatelessWidget {
     );
   }
 
-  Widget _buildDefaultButton(BuildContext context) {
-    return IconButton(
-      icon: Icon(
-        source.isDefault ? Icons.star_rounded : Icons.star_border_rounded,
-        size: 20,
-      ),
-      onPressed: source.isDefault
-          ? null
-          : () => PaymentSourceService.setDefault(context, userId, source),
-      color: source.isDefault
-          ? Colors.amber
-          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-      tooltip: source.isDefault ? 'Default' : 'Set as default',
-    );
-  }
-
   Widget _buildActions(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -107,12 +90,12 @@ class PaymentSourceItem extends StatelessWidget {
         IconButton(
           icon: Icon(Icons.edit_rounded, size: 18),
           onPressed: () =>
-              showPaymentSourceDialog(context, userId, source: source),
+              showItemNameDialog(context, userId, itemName: itemName),
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
         IconButton(
           icon: Icon(Icons.delete_rounded, size: 18),
-          onPressed: () => PaymentSourceService.delete(context, userId, source),
+          onPressed: () => ItemNameService.delete(context, userId, itemName),
           color: Colors.red,
         ),
       ],

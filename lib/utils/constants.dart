@@ -18,3 +18,5 @@ const List<Map<String, dynamic>> defaultSpentTypes = [
   {'name': 'Education', 'color': '#6366F1', 'icon': 'school'},
   {'name': 'Other', 'color': '#6B7280', 'icon': 'more_horiz'},
 ];
+
+const List<String> currencyOptions = ['IDR', 'USD', 'EUR', 'GBP', 'JPY', 'SGD'];

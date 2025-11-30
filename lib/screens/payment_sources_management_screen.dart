@@ -8,11 +8,37 @@ import '../config/theme.dart';
 import '../widgets/profile/payment_source_item.dart';
 import '../widgets/profile/payment_source_dialog.dart';
 
-class PaymentSourcesManagementScreen extends ConsumerWidget {
+class PaymentSourcesManagementScreen extends ConsumerStatefulWidget {
   const PaymentSourcesManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PaymentSourcesManagementScreen> createState() =>
+      _PaymentSourcesManagementScreenState();
+}
+
+class _PaymentSourcesManagementScreenState
+    extends ConsumerState<PaymentSourcesManagementScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -26,7 +52,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
         children: [
           _buildBackground(isDark),
           _buildDecorativeCircles(isDark),
-          _buildMainContent(context, ref, user.uid, isDark),
+          _buildMainContent(context, user.uid, isDark),
         ],
       ),
     );
@@ -98,7 +124,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, WidgetRef ref, String userId, bool isDark) {
+  Widget _buildMainContent(BuildContext context, String userId, bool isDark) {
     return Column(
       children: [
         PreferredSize(
@@ -111,9 +137,11 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
             child: Column(
               children: [
                 SizedBox(height: 16),
-                _buildHeader(context, userId),
+                _buildSearchField(),
                 SizedBox(height: 16),
-                _buildSourcesList(context, ref, userId),
+                _buildHeader(context),
+                SizedBox(height: 16),
+                _buildSourcesList(context, userId),
                 SizedBox(height: 24),
                 _buildAddPaymentSourceButton(context, userId),
                 SizedBox(height: 24),
@@ -122,6 +150,32 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: GlassContainer(
+        padding: EdgeInsets.zero,
+        child: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Search payment sources...',
+            prefixIcon: Icon(Icons.search_rounded, size: 20),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.close_rounded, size: 20),
+                    onPressed: () {
+                      _searchController.clear();
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          ),
+        ),
+      ),
     );
   }
 
@@ -170,7 +224,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, String userId) {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -195,7 +249,7 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSourcesList(BuildContext context, WidgetRef ref, String userId) {
+  Widget _buildSourcesList(BuildContext context, String userId) {
     final sourcesAsync = ref.watch(paymentSourcesProvider(true));
 
     return sourcesAsync.when(
@@ -204,12 +258,24 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
           return _buildEmptyState(context);
         }
 
+        // Filter sources based on search query
+        final filteredSources = _searchQuery.isEmpty
+            ? sources
+            : sources
+                .where((source) =>
+                    source.name.toLowerCase().contains(_searchQuery))
+                .toList();
+
+        if (filteredSources.isEmpty) {
+          return _buildNoResultsState(context);
+        }
+
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: GlassContainer(
             padding: EdgeInsets.all(8),
             child: Column(
-              children: sources.map((source) {
+              children: filteredSources.map((source) {
                 return PaymentSourceItem(userId: userId, source: source);
               }).toList(),
             ),
@@ -242,6 +308,38 @@ class PaymentSourcesManagementScreen extends ConsumerWidget {
                 context,
               ).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: GlassContainer(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.search_off_rounded,
+                size: 48,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.4),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'No results found for "$_searchQuery"',
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
           ),
         ),
       ),

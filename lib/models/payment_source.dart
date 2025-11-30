@@ -4,15 +4,15 @@ class PaymentSource {
   final String id;
   final String name;
   final bool isActive;
+  final bool isDefault;
   final DateTime createdAt;
-  final int order;
 
   PaymentSource({
     required this.id,
     required this.name,
     this.isActive = true,
+    this.isDefault = false,
     required this.createdAt,
-    this.order = 0,
   });
 
   factory PaymentSource.fromFirestore(DocumentSnapshot doc) {
@@ -21,8 +21,8 @@ class PaymentSource {
       id: doc.id,
       name: data['name'] ?? '',
       isActive: data['isActive'] ?? true,
+      isDefault: data['isDefault'] ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      order: data['order'] ?? 0,
     );
   }
 
@@ -30,8 +30,8 @@ class PaymentSource {
     return {
       'name': name,
       'isActive': isActive,
+      'isDefault': isDefault,
       'createdAt': Timestamp.fromDate(createdAt),
-      'order': order,
     };
   }
 }

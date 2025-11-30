@@ -1,158 +1,29 @@
-// lib/services/spent_type_service.dart
+// lib/services/place_name_service.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui';
-import '../models/spent_type.dart';
+import '../models/place_name.dart';
 import '../widgets/glass_container.dart';
 import '../utils/notification_helper.dart';
 
-class SpentTypeService {
+class PlaceNameService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const int _maxItems = 100;
 
-  /// Adds a new spent type for the user
+  /// Adds a new place name with notification (for profile settings)
   static Future<void> add(
     BuildContext context,
     String userId,
     String name,
-    String color,
-    String icon,
   ) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('spentTypes')
-          .add({
-            'name': name,
-            'color': color,
-            'icon': icon,
-            'isActive': true,
-            'isDefault': false,
-            'createdAt': DateTime.now(),
-          });
-
-      if (context.mounted) {
-        NotificationHelper.showSuccess(context, 'Spent type added successfully');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        NotificationHelper.showError(context, 'Error: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Adds a new spent type without notification (for auto-add during expense save)
-  static Future<void> addSilent(
-    String userId,
-    String name, {
-    String color = '#6B7280',
-    String icon = 'more_horiz',
-  }) async {
-    try {
-      // Check if already exists (case-insensitive)
-      final exists = await _existsCaseInsensitive(userId, name);
-      if (exists) return;
-
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('spentTypes')
-          .add({
-            'name': name,
-            'color': color,
-            'icon': icon,
-            'isActive': true,
-            'isDefault': false,
-            'createdAt': DateTime.now(),
-          });
-    } catch (e) {
-      debugPrint('Error adding spent type silently: $e');
-    }
-  }
-
-  /// Check if spent type exists (case-insensitive)
-  static Future<bool> _existsCaseInsensitive(String userId, String name) async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('spentTypes')
-        .get();
-
-    return snapshot.docs.any(
-      (doc) => (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
-    );
-  }
-
-  /// Updates an existing spent type
-  static Future<void> update(
-    BuildContext context,
-    String userId,
-    SpentType spentType,
-    String name,
-    String color,
-    String icon,
-    bool isActive,
-  ) async {
-    try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('spentTypes')
-          .doc(spentType.id)
-          .update({
-            'name': name,
-            'color': color,
-            'icon': icon,
-            'isActive': isActive,
-          });
-
-      if (context.mounted) {
-        NotificationHelper.showSuccess(context, 'Spent type updated successfully');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        NotificationHelper.showError(context, 'Error: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Sets a spent type as default, unsetting all others
-  static Future<void> setDefault(
-    BuildContext context,
-    String userId,
-    SpentType spentType,
-  ) async {
-    try {
-      final batch = _firestore.batch();
-
-      // Get all spent types
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('spentTypes')
-          .get();
-
-      // Unset all defaults
-      for (final doc in snapshot.docs) {
-        batch.update(doc.reference, {'isDefault': false});
-      }
-
-      // Set this one as default
-      batch.update(
-        _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('spentTypes')
-            .doc(spentType.id),
-        {'isDefault': true},
-      );
-
-      await batch.commit();
+      await _addToCollection(userId, name);
+      await _enforceLimit(userId);
 
       if (context.mounted) {
         NotificationHelper.showSuccess(
           context,
-          'Default category updated',
+          'Place name added successfully',
         );
       }
     } catch (e) {
@@ -165,20 +36,112 @@ class SpentTypeService {
     }
   }
 
-  /// Deletes a spent type after user confirmation
+  /// Adds a new place name without notification (for auto-add during expense save)
+  static Future<void> addSilent(String userId, String name) async {
+    try {
+      // Check if already exists (case-insensitive)
+      final exists = await _existsCaseInsensitive(userId, name);
+      if (exists) return;
+
+      await _addToCollection(userId, name);
+      await _enforceLimit(userId);
+    } catch (e) {
+      debugPrint('Error adding place name silently: $e');
+    }
+  }
+
+  /// Internal method to add to collection
+  static Future<void> _addToCollection(String userId, String name) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('placeNames')
+        .add({
+          'name': name,
+          'isActive': true,
+          'createdAt': DateTime.now(),
+        });
+  }
+
+  /// Enforces the 100 item limit by deleting oldest items
+  static Future<void> _enforceLimit(String userId) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('placeNames')
+        .orderBy('createdAt', descending: false)
+        .get();
+
+    if (snapshot.docs.length > _maxItems) {
+      final itemsToDelete = snapshot.docs.length - _maxItems;
+      final batch = _firestore.batch();
+
+      for (int i = 0; i < itemsToDelete; i++) {
+        batch.delete(snapshot.docs[i].reference);
+      }
+
+      await batch.commit();
+    }
+  }
+
+  /// Check if place name exists (case-insensitive)
+  static Future<bool> _existsCaseInsensitive(String userId, String name) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('placeNames')
+        .get();
+
+    return snapshot.docs.any(
+      (doc) => (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
+    );
+  }
+
+  /// Updates an existing place name
+  static Future<void> update(
+    BuildContext context,
+    String userId,
+    PlaceName placeName,
+    String name,
+    bool isActive,
+  ) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('placeNames')
+          .doc(placeName.id)
+          .update({'name': name, 'isActive': isActive});
+
+      if (context.mounted) {
+        NotificationHelper.showSuccess(
+          context,
+          'Place name updated successfully',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        NotificationHelper.showError(
+          context,
+          'Error: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  /// Deletes a place name after user confirmation
   static Future<void> delete(
     BuildContext context,
     String userId,
-    SpentType spentType,
+    PlaceName placeName,
   ) async {
-    await _showDeleteConfirmation(context, userId, spentType);
+    await _showDeleteConfirmation(context, userId, placeName);
   }
 
-  /// Shows a confirmation dialog before deleting
   static Future<void> _showDeleteConfirmation(
     BuildContext context,
     String userId,
-    SpentType spentType,
+    PlaceName placeName,
   ) {
     bool isLoading = false;
 
@@ -197,31 +160,19 @@ class SpentTypeService {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildDialogIcon(),
-                    SizedBox(height: 16),
                     Text(
-                      'Delete Spent Type',
+                      'Delete Place Name',
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 12),
+                    SizedBox(height: 16),
                     Text(
-                      'Are you sure you want to delete "${spentType.name}"?',
+                      'Are you sure you want to delete "${placeName.name}"?',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
                         color: Theme.of(
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'This action cannot be undone.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     SizedBox(height: 24),
@@ -236,7 +187,7 @@ class SpentTypeService {
                             context,
                             dialogContext,
                             userId,
-                            spentType,
+                            placeName,
                             isLoading,
                             (loading) => setState(() => isLoading = loading),
                           ),
@@ -250,17 +201,6 @@ class SpentTypeService {
           ),
         ),
       ),
-    );
-  }
-
-  static Widget _buildDialogIcon() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.2),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 32),
     );
   }
 
@@ -299,7 +239,7 @@ class SpentTypeService {
     BuildContext context,
     BuildContext dialogContext,
     String userId,
-    SpentType spentType,
+    PlaceName placeName,
     bool isLoading,
     Function(bool) setLoading,
   ) {
@@ -308,13 +248,6 @@ class SpentTypeService {
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [Colors.red, Colors.redAccent]),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -327,20 +260,26 @@ class SpentTypeService {
                     await _firestore
                         .collection('users')
                         .doc(userId)
-                        .collection('spentTypes')
-                        .doc(spentType.id)
+                        .collection('placeNames')
+                        .doc(placeName.id)
                         .delete();
 
                     if (dialogContext.mounted) {
                       Navigator.pop(dialogContext);
                     }
                     if (context.mounted) {
-                      NotificationHelper.showSuccess(context, 'Spent type deleted successfully');
+                      NotificationHelper.showSuccess(
+                        context,
+                        'Place name deleted successfully',
+                      );
                     }
                   } catch (e) {
                     setLoading(false);
                     if (context.mounted) {
-                      NotificationHelper.showError(context, 'Error: ${e.toString()}');
+                      NotificationHelper.showError(
+                        context,
+                        'Error: ${e.toString()}',
+                      );
                     }
                   }
                 },
@@ -368,5 +307,4 @@ class SpentTypeService {
       ),
     );
   }
-
 }

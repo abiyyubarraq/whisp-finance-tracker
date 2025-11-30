@@ -11,6 +11,7 @@ import '../services/budget_service.dart';
 import '../services/expense_service.dart';
 import '../widgets/glass_container.dart';
 import '../config/theme.dart';
+import '../utils/constants.dart';
 
 class ConfirmExpenseForm extends ConsumerStatefulWidget {
   final ExpenseData initialData;
@@ -199,7 +200,7 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
                           vertical: 16,
                         ),
                       ),
-                      items: ['IDR', 'USD']
+                      items: currencyOptions
                           .map(
                             (c) => DropdownMenuItem(value: c, child: Text(c)),
                           )

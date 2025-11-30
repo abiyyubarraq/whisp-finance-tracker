@@ -3,14 +3,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/expense_item.dart';
+import '../../models/item_name.dart';
 import '../../providers/user_data_provider.dart';
 import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
 import '../../utils/input_helper.dart';
+import 'spent_type_field.dart';
+import 'item_name_field.dart';
+
+/// Result class containing the expense item and flags for new items
+class ExpenseItemFormResult {
+  final ExpenseItem item;
+  final bool isShouldAddSpentType;
+  final bool isShouldAddItemName;
+  final String? newSpentTypeName;
+  final String? newItemName;
+
+  ExpenseItemFormResult({
+    required this.item,
+    this.isShouldAddSpentType = false,
+    this.isShouldAddItemName = false,
+    this.newSpentTypeName,
+    this.newItemName,
+  });
+}
 
 class ExpenseItemForm extends ConsumerStatefulWidget {
   final ExpenseItem? item;
-  final Function(ExpenseItem) onSave;
+  final Function(ExpenseItemFormResult) onSave;
 
   const ExpenseItemForm({super.key, this.item, required this.onSave});
 
@@ -25,8 +45,10 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
   late TextEditingController _quantityController;
   late TextEditingController _taxController;
   late TextEditingController _descController;
+  late TextEditingController _spentTypeController;
 
-  String? _selectedSpentType;
+  bool _isShouldAddSpentType = false;
+  bool _isShouldAddItemName = false;
   bool _hasSetDefaultSpentType = false;
 
   @override
@@ -45,7 +67,10 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
       text: widget.item?.tax?.toString() ?? '',
     );
     _descController = TextEditingController(text: widget.item?.descItem ?? '');
-    _selectedSpentType = widget.item?.spentType;
+    _spentTypeController = TextEditingController(
+      text: widget.item?.spentType ?? '',
+    );
+    _hasSetDefaultSpentType = widget.item?.spentType.isNotEmpty ?? false;
   }
 
   @override
@@ -55,6 +80,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
     _quantityController.dispose();
     _taxController.dispose();
     _descController.dispose();
+    _spentTypeController.dispose();
     super.dispose();
   }
 
@@ -98,29 +124,9 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
                 ],
               ),
               SizedBox(height: 24),
-              GlassContainer(
-                padding: EdgeInsets.zero,
-                child: TextFormField(
-                  controller: _itemNameController,
-                  decoration: InputDecoration(
-                    hintText: 'Item name (e.g., Coffee, Notebook)',
-                    prefixIcon: Icon(Icons.shopping_bag_rounded, size: 20),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter item name';
-                    }
-                    return null;
-                  },
-                ),
-              ),
+              _buildItemNameField(),
               SizedBox(height: 16),
-              _buildSpentTypeDropdown(),
+              _buildSpentTypeField(),
               SizedBox(height: 16),
               Row(
                 children: [
@@ -234,11 +240,11 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
               SizedBox(height: 24),
               ValueListenableBuilder(
                 valueListenable: _costController,
-                builder: (context, _, _) => ValueListenableBuilder(
+                builder: (context, _, __) => ValueListenableBuilder(
                   valueListenable: _quantityController,
-                  builder: (context, _, _) => ValueListenableBuilder(
+                  builder: (context, _, __) => ValueListenableBuilder(
                     valueListenable: _taxController,
-                    builder: (context, _, _) => _buildCalculatedTotal(),
+                    builder: (context, _, __) => _buildCalculatedTotal(),
                   ),
                 ),
               ),
@@ -251,33 +257,66 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
     );
   }
 
-  Widget _buildSpentTypeDropdown() {
+  Widget _buildItemNameField() {
+    final itemNamesAsync = ref.watch(itemNamesProvider(false));
+
+    return itemNamesAsync.when(
+      data: (itemNames) {
+        return ItemNameField(
+          controller: _itemNameController,
+          itemNames: itemNames,
+          onIsNewChanged: (isNew) {
+            setState(() => _isShouldAddItemName = isNew);
+          },
+        );
+      },
+      loading: () => GlassContainer(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (error, stack) {
+        debugPrint('Error loading item names: $error');
+        // Fallback to simple text field
+        return ItemNameField(
+          controller: _itemNameController,
+          itemNames: const <ItemName>[],
+          onIsNewChanged: (isNew) {
+            setState(() => _isShouldAddItemName = isNew);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSpentTypeField() {
     final spentTypesAsync = ref.watch(spentTypesProvider(false));
 
+    // Auto-set default spent type only once on initial load
     spentTypesAsync.whenData((types) {
       if (!_hasSetDefaultSpentType &&
-          _selectedSpentType == null &&
+          _spentTypeController.text.isEmpty &&
           types.isNotEmpty &&
           mounted) {
-        setState(() {
-          _hasSetDefaultSpentType = true;
-          _selectedSpentType = types.first.name;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _spentTypeController.text.isEmpty) {
+            // Find default spent type, or use first if none is default
+            final defaultType = types.firstWhere(
+              (t) => t.isDefault,
+              orElse: () => types.first,
+            );
+            setState(() {
+              _hasSetDefaultSpentType = true;
+              _spentTypeController.text = defaultType.name;
+            });
+          }
         });
       }
-    });
-
-    ref.listen(spentTypesProvider(false), (previous, next) {
-      next.whenData((types) {
-        if (!_hasSetDefaultSpentType &&
-            _selectedSpentType == null &&
-            types.isNotEmpty &&
-            mounted) {
-          setState(() {
-            _hasSetDefaultSpentType = true;
-            _selectedSpentType = types.first.name;
-          });
-        }
-      });
     });
 
     return spentTypesAsync.when(
@@ -289,51 +328,12 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
           );
         }
 
-        return GlassContainer(
-          padding: EdgeInsets.zero,
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedSpentType,
-            decoration: InputDecoration(
-              hintText: 'Category',
-              prefixIcon: Icon(Icons.category_rounded, size: 20),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-            ),
-            items: types.map((type) {
-              final colorString = type.color;
-              final color = Color(
-                int.parse(colorString.substring(1), radix: 16) + 0xFF000000,
-              );
-
-              return DropdownMenuItem<String>(
-                value: type.name,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(type.name),
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() => _selectedSpentType = value);
-            },
-            validator: (value) {
-              if (value == null) return 'Please select a category';
-              return null;
-            },
-          ),
+        return SpentTypeField(
+          controller: _spentTypeController,
+          spentTypes: types,
+          onIsNewChanged: (isNew) {
+            setState(() => _isShouldAddSpentType = isNew);
+          },
         );
       },
       loading: () => GlassContainer(
@@ -415,15 +415,25 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
+    final spentTypeName = _spentTypeController.text.trim();
+    if (spentTypeName.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please enter a category')));
+      return;
+    }
+
     final cost = double.parse(_costController.text);
     final quantity = int.parse(_quantityController.text);
     final tax = _taxController.text.isEmpty
         ? null
         : double.parse(_taxController.text);
 
+    final itemName = _itemNameController.text.trim();
+
     final item = ExpenseItem(
-      itemName: _itemNameController.text.trim(),
-      spentType: _selectedSpentType!,
+      itemName: itemName,
+      spentType: spentTypeName,
       quantity: quantity,
       cost: cost,
       value: ExpenseItem.calculateValue(
@@ -437,6 +447,14 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
           : _descController.text.trim(),
     );
 
-    widget.onSave(item);
+    widget.onSave(
+      ExpenseItemFormResult(
+        item: item,
+        isShouldAddSpentType: _isShouldAddSpentType,
+        isShouldAddItemName: _isShouldAddItemName,
+        newSpentTypeName: _isShouldAddSpentType ? spentTypeName : null,
+        newItemName: _isShouldAddItemName ? itemName : null,
+      ),
+    );
   }
 }

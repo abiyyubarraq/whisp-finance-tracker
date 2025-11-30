@@ -1,33 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SpentType {
+class PlaceName {
   final String id;
   final String name;
-  final String color;
-  final String icon;
   final bool isActive;
-  final bool isDefault;
   final DateTime createdAt;
 
-  SpentType({
+  PlaceName({
     required this.id,
     required this.name,
-    required this.color,
-    required this.icon,
     this.isActive = true,
-    this.isDefault = false,
     required this.createdAt,
   });
 
-  factory SpentType.fromFirestore(DocumentSnapshot doc) {
+  factory PlaceName.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return SpentType(
+    return PlaceName(
       id: doc.id,
       name: data['name'] ?? '',
-      color: data['color'] ?? '#6B7280',
-      icon: data['icon'] ?? 'more_horiz',
       isActive: data['isActive'] ?? true,
-      isDefault: data['isDefault'] ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -35,10 +26,7 @@ class SpentType {
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
-      'color': color,
-      'icon': icon,
       'isActive': isActive,
-      'isDefault': isDefault,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }

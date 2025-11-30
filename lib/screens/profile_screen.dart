@@ -127,6 +127,10 @@ class ProfileScreen extends ConsumerWidget {
                 SizedBox(height: 24),
                 _buildSpentTypesSection(context, user.uid),
                 SizedBox(height: 24),
+                _buildPlaceNamesSection(context, user.uid),
+                SizedBox(height: 24),
+                _buildItemNamesSection(context, user.uid),
+                SizedBox(height: 24),
                 _buildLogoutButton(context, ref),
                 SizedBox(height: 24),
               ],
@@ -172,6 +176,34 @@ class ProfileScreen extends ConsumerWidget {
         subtitle: 'Edit Spent Types',
         onTap: () {
           Navigator.pushNamed(context, '/profile/spent-types');
+        },
+      ),
+    ]);
+  }
+
+  Widget _buildPlaceNamesSection(BuildContext context, String userId) {
+    return _buildSection(context, '', [
+      _buildSettingItem(
+        context,
+        icon: Icons.store_rounded,
+        title: 'Place Names',
+        subtitle: 'Manage saved places',
+        onTap: () {
+          Navigator.pushNamed(context, '/profile/place-names');
+        },
+      ),
+    ]);
+  }
+
+  Widget _buildItemNamesSection(BuildContext context, String userId) {
+    return _buildSection(context, '', [
+      _buildSettingItem(
+        context,
+        icon: Icons.shopping_bag_rounded,
+        title: 'Item Names',
+        subtitle: 'Manage saved items',
+        onTap: () {
+          Navigator.pushNamed(context, '/profile/item-names');
         },
       ),
     ]);

@@ -37,20 +37,31 @@ users/{userId}/
     - currency: String
     - inputMethod: 'image'|'voice'|'manual'
     - imageUrl?: String
+    - receiptImages?: Array<String>
     - aiConfidence?: Number
-    
+
   paymentSources/{sourceId}
     - name: String
     - isActive: Boolean
-    - order: Number
-    
+    - createdAt: Timestamp
+
   spentTypes/{typeId}
     - name: String
     - color: String
     - icon: String
     - isActive: Boolean
-    - order: Number
-    
+    - createdAt: Timestamp
+
+  placeNames/{placeId}
+    - name: String
+    - isActive: Boolean
+    - createdAt: Timestamp
+
+  itemNames/{itemId}
+    - name: String
+    - isActive: Boolean
+    - createdAt: Timestamp
+
   budgets/{budgetId}
     - category: String
     - limit: Number

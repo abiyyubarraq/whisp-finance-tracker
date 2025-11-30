@@ -15,6 +15,8 @@ import 'screens/profile_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/payment_sources_management_screen.dart';
 import 'screens/spent_types_management_screen.dart';
+import 'screens/place_names_management_screen.dart';
+import 'screens/item_names_management_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -57,6 +59,8 @@ class MyApp extends ConsumerWidget {
         '/profile/payment-sources': (context) =>
             const PaymentSourcesManagementScreen(),
         '/profile/spent-types': (context) => const SpentTypesManagementScreen(),
+        '/profile/place-names': (context) => const PlaceNamesManagementScreen(),
+        '/profile/item-names': (context) => const ItemNamesManagementScreen(),
       },
     );
   }
