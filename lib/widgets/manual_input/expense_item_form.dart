@@ -240,11 +240,11 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
               SizedBox(height: 24),
               ValueListenableBuilder(
                 valueListenable: _costController,
-                builder: (context, _, __) => ValueListenableBuilder(
+                builder: (context, costValue, child) => ValueListenableBuilder(
                   valueListenable: _quantityController,
-                  builder: (context, _, __) => ValueListenableBuilder(
+                  builder: (context, quantityValue, child) => ValueListenableBuilder(
                     valueListenable: _taxController,
-                    builder: (context, _, __) => _buildCalculatedTotal(),
+                    builder: (context, taxValue, child) => _buildCalculatedTotal(),
                   ),
                 ),
               ),

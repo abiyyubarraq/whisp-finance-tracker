@@ -64,12 +64,18 @@ class ColorHelper {
   /// String hex = ColorHelper.colorToHex(Colors.red); // Returns '#F44336'
   /// ```
   static String colorToHex(Color color) {
-    return '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+    final r = (color.r * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    final g = (color.g * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    final b = (color.b * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    return '#$r$g$b'.toUpperCase();
   }
 
   /// Convert Color to hex string (lowercase)
   static String colorToHexLowerCase(Color color) {
-    return '#${color.value.toRadixString(16).substring(2).toLowerCase()}';
+    final r = (color.r * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    final g = (color.g * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    final b = (color.b * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    return '#$r$g$b'.toLowerCase();
   }
 
   /// Get a categorized map of colors with names for better UI organization
@@ -268,19 +274,33 @@ class ColorHelper {
   static Color blendColors(Color color1, Color color2, double ratio) {
     assert(ratio >= 0 && ratio <= 1, 'Ratio must be between 0 and 1');
 
-    final r = (color1.red * (1 - ratio) + color2.red * ratio).round();
-    final g = (color1.green * (1 - ratio) + color2.green * ratio).round();
-    final b = (color1.blue * (1 - ratio) + color2.blue * ratio).round();
-    final a = (color1.alpha * (1 - ratio) + color2.alpha * ratio).round();
+    final r1 = (color1.r * 255.0).round().clamp(0, 255);
+    final g1 = (color1.g * 255.0).round().clamp(0, 255);
+    final b1 = (color1.b * 255.0).round().clamp(0, 255);
+    final a1 = (color1.a * 255.0).round().clamp(0, 255);
+
+    final r2 = (color2.r * 255.0).round().clamp(0, 255);
+    final g2 = (color2.g * 255.0).round().clamp(0, 255);
+    final b2 = (color2.b * 255.0).round().clamp(0, 255);
+    final a2 = (color2.a * 255.0).round().clamp(0, 255);
+
+    final r = (r1 * (1 - ratio) + r2 * ratio).round();
+    final g = (g1 * (1 - ratio) + g2 * ratio).round();
+    final b = (b1 * (1 - ratio) + b2 * ratio).round();
+    final a = (a1 * (1 - ratio) + a2 * ratio).round();
 
     return Color.fromARGB(a, r, g, b);
   }
 
   /// Convert color to grayscale
   static Color toGrayscale(Color color) {
-    final gray = (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue)
-        .round();
-    return Color.fromARGB(color.alpha, gray, gray, gray);
+    final r = (color.r * 255.0).round().clamp(0, 255);
+    final g = (color.g * 255.0).round().clamp(0, 255);
+    final b = (color.b * 255.0).round().clamp(0, 255);
+    final a = (color.a * 255.0).round().clamp(0, 255);
+
+    final gray = (0.299 * r + 0.587 * g + 0.114 * b).round();
+    return Color.fromARGB(a, gray, gray, gray);
   }
 
   /// Get color with adjusted opacity/alpha
@@ -323,7 +343,9 @@ class ColorHelper {
   static MaterialColor createMaterialColor(Color color) {
     final strengths = <double>[.05];
     final swatch = <int, Color>{};
-    final int r = color.red, g = color.green, b = color.blue;
+    final int r = (color.r * 255.0).round().clamp(0, 255);
+    final int g = (color.g * 255.0).round().clamp(0, 255);
+    final int b = (color.b * 255.0).round().clamp(0, 255);
 
     for (int i = 1; i < 10; i++) {
       strengths.add(0.1 * i);
@@ -339,6 +361,8 @@ class ColorHelper {
       );
     }
 
-    return MaterialColor(color.value, swatch);
+    // Create the primary color value as an int (ARGB format)
+    final primaryValue = 0xFF000000 | (r << 16) | (g << 8) | b;
+    return MaterialColor(primaryValue, swatch);
   }
 }

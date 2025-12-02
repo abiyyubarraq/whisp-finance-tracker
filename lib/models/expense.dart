@@ -124,7 +124,7 @@ class Expense {
 
   /// Calculate total value from a list of expense items
   static double calculateTotalValue(List<ExpenseItem> items) {
-    return items.fold<double>(0, (sum, item) => sum + item.value);
+    return items.fold<double>(0, (total, item) => total + item.value);
   }
 
   /// Get all unique spent types from items
