@@ -40,17 +40,22 @@ class ExpenseData {
   }
 
   static DateTime _parseDateTime(dynamic value) {
+    DateTime dateTime;
+
     if (value is String) {
       try {
-        return DateTime.parse(value);
+        dateTime = DateTime.parse(value);
       } catch (e) {
-        return DateTime.now();
+        dateTime = DateTime.now();
       }
+    } else if (value is DateTime) {
+      dateTime = value;
+    } else {
+      dateTime = DateTime.now();
     }
-    if (value is DateTime) {
-      return value;
-    }
-    return DateTime.now();
+
+    // Normalize time to 12:00 PM
+    return DateTime(dateTime.year, dateTime.month, dateTime.day, 12, 0);
   }
 
   static double _parseDouble(dynamic value) {

@@ -27,7 +27,7 @@ class DateTimePickerField extends StatelessWidget {
               Icon(Icons.calendar_today_rounded, size: 20),
               SizedBox(width: 12),
               Text(
-                DateFormat('MMM dd, yyyy - HH:mm').format(selectedDateTime),
+                DateFormat('MMM dd, yyyy').format(selectedDateTime),
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
               ),
             ],
@@ -46,16 +46,10 @@ class DateTimePickerField extends StatelessWidget {
     );
 
     if (date != null) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+      // Set time to 12:00 PM (noon) automatically
+      onDateTimeChanged(
+        DateTime(date.year, date.month, date.day, 12, 0),
       );
-
-      if (time != null) {
-        onDateTimeChanged(
-          DateTime(date.year, date.month, date.day, time.hour, time.minute),
-        );
-      }
     }
   }
 }

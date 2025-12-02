@@ -558,12 +558,6 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
           ),
           SizedBox(height: 8),
           _buildInfoRow(
-            Icons.calendar_today_rounded,
-            'Created',
-            DateFormat('MMM dd, yyyy • HH:mm').format(widget.expense.createdAt),
-          ),
-          SizedBox(height: 8),
-          _buildInfoRow(
             widget.expense.isReviewed
                 ? Icons.check_circle_rounded
                 : Icons.pending_rounded,

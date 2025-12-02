@@ -20,6 +20,9 @@ class ExpenseSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final totalSpent = expenses.fold<double>(0, (sum, e) => sum + e.totalValue);
+    final avgPerDay = totalSpent / dateRange!.duration.inDays.clamp(1, 999);
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
       child: SpendingSummaryCard(
@@ -27,7 +30,8 @@ class ExpenseSummaryCard extends StatelessWidget {
         dateRange: dateRange,
         onDateRangeTap: () => _showDateRangePicker(context),
         mainIcon: Icons.trending_up_rounded,
-        secondaryStatLabel: 'Average',
+        secondaryStatLabel: 'Avg/Day',
+        secondaryStatValue: avgPerDay,
         secondaryStatIcon: Icons.analytics_rounded,
       ),
     );

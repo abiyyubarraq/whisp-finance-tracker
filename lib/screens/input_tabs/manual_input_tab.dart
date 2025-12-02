@@ -1,7 +1,6 @@
 // lib/screens/input_tabs/manual_input_tab.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
@@ -48,7 +47,7 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   final _descController = TextEditingController();
   final _paymentSourceController = TextEditingController();
 
-  DateTime _spentAt = DateTime.now();
+  late DateTime _spentAt;
   String _currency = 'IDR';
   final List<ExpenseItem> _items = [];
   bool _isLoading = false;
@@ -67,6 +66,9 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
   void initState() {
     super.initState();
     _hasSetDefaultPaymentSource = _paymentSourceController.text.isNotEmpty;
+    // Initialize with today's date at 12:00 PM
+    final now = DateTime.now();
+    _spentAt = DateTime(now.year, now.month, now.day, 12, 0);
   }
 
   @override
@@ -593,7 +595,9 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
       _spentPlaceController.clear();
       _descController.clear();
       _paymentSourceController.clear();
-      _spentAt = DateTime.now();
+      // Reset to today's date at 12:00 PM
+      final now = DateTime.now();
+      _spentAt = DateTime(now.year, now.month, now.day, 12, 0);
       _currency = 'IDR';
       _items.clear();
       _hasSetDefaultPaymentSource = false;
@@ -709,11 +713,8 @@ class _ManualInputTabState extends ConsumerState<ManualInputTab> {
         aiConfidence: 'manual',
       );
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('expenses')
-          .add(expense.toFirestore());
+      final expenseService = ExpenseService();
+      await expenseService.addExpense(user.uid, expense);
 
       // Check budget alerts
       final budgetService = BudgetService();

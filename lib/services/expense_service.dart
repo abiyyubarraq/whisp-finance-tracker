@@ -8,7 +8,25 @@ class ExpenseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  /// Update an existing expense
+  /// Add a new expense with createdAt timestamp
+  Future<String> addExpense(String userId, Expense expense) async {
+    try {
+      final docRef = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('expenses')
+          .add(expense.toFirestore());
+      return docRef.id;
+    } on FirebaseException catch (e) {
+      debugPrint('Firebase error adding expense: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('Unexpected error adding expense: $e');
+      rethrow;
+    }
+  }
+
+  /// Update an existing expense (sets updatedAt, preserves createdAt and spentAt)
   Future<void> updateExpense(String userId, Expense expense) async {
     if (expense.id.isEmpty) {
       throw ArgumentError('Expense ID cannot be empty for update');
@@ -20,7 +38,7 @@ class ExpenseService {
           .doc(userId)
           .collection('expenses')
           .doc(expense.id)
-          .update(expense.toFirestore());
+          .update(expense.toFirestoreUpdate());
     } on FirebaseException catch (e) {
       debugPrint('Firebase error updating expense: ${e.code} - ${e.message}');
       rethrow;

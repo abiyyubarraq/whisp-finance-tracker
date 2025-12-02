@@ -399,7 +399,7 @@ class _ExpenseItemFormState extends ConsumerState<ExpenseItemForm> {
           borderRadius: BorderRadius.circular(16),
           child: Center(
             child: Text(
-              widget.item == null ? 'Add Item' : 'Save Changes',
+              widget.item == null ? 'Add Item' : 'Save Item',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

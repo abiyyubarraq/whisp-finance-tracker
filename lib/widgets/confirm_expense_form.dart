@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../models/expense.dart';
@@ -351,11 +350,8 @@ class _ConfirmExpenseFormState extends ConsumerState<ConfirmExpenseForm> {
         isReviewed: true,
       );
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('expenses')
-          .add(expense.toFirestore());
+      final expenseService = ExpenseService();
+      await expenseService.addExpense(user.uid, expense);
 
       // Check budget alerts
       final budgetService = BudgetService();

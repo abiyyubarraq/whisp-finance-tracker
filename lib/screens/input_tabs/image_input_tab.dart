@@ -187,20 +187,20 @@ class _ImageInputTabState extends ConsumerState<ImageInputTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassContainer(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.all(16),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            width: 140,
-            height: 140,
+            width: 110,
+            height: 110,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: isDark
@@ -209,12 +209,12 @@ class _ImageInputTabState extends ConsumerState<ImageInputTab> {
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, size: 32, color: Colors.white),
+                  child: Icon(icon, size: 28, color: Colors.white),
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 10),
                 Text(
                   label,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ],
             ),

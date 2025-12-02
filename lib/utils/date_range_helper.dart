@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 /// Helper class for date range operations used across the app.
 class DateRangeHelper {
   /// Returns the current month's date range with time set to start and end of day.
+  /// Start: First day of current month at 00:00:00
+  /// End: Current date at 23:59:59
   static DateTimeRange getCurrentMonthRange() {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-    return DateTimeRange(start: startOfMonth, end: endOfMonth);
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    return DateTimeRange(start: startOfMonth, end: endOfToday);
   }
 
   /// Formats a DateTimeRange into a readable label.
