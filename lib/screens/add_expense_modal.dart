@@ -105,6 +105,12 @@ class _AddExpenseModalState extends State<AddExpenseModal>
                     children: [
                       _buildTab(
                         context,
+                        icon: Icons.edit_rounded,
+                        label: 'Manual',
+                        index: 2,
+                      ),
+                      _buildTab(
+                        context,
                         icon: Icons.camera_alt_rounded,
                         label: 'Scan',
                         index: 0,
@@ -114,12 +120,6 @@ class _AddExpenseModalState extends State<AddExpenseModal>
                         icon: Icons.mic_rounded,
                         label: 'Voice',
                         index: 1,
-                      ),
-                      _buildTab(
-                        context,
-                        icon: Icons.edit_rounded,
-                        label: 'Manual',
-                        index: 2,
                       ),
                     ],
                   ),
@@ -131,9 +131,9 @@ class _AddExpenseModalState extends State<AddExpenseModal>
                 child: TabBarView(
                   controller: _tabController,
                   children: const [
+                    ManualInputTab(),
                     ImageInputTab(),
                     VoiceInputTab(),
-                    ManualInputTab(),
                   ],
                 ),
               ),

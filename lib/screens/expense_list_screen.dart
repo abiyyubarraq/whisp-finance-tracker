@@ -109,56 +109,72 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   }
 
   Widget _buildExpensesList(List<Expense> expenses) {
-    return Column(
-      children: [
-        ExpenseSummaryCard(
-          expenses: expenses,
-          dateRange: _filter.dateRange,
-          onDateRangeSelected: (dateRange) {
-            setState(() {
-              _filter = ExpenseFilter(
-                dateRange: dateRange,
-                currencyFilter: _filter.currencyFilter,
-                selectedSpentTypes: _filter.selectedSpentTypes,
-                selectedPaymentSources: _filter.selectedPaymentSources,
-                showOnlyFlagged: _filter.showOnlyFlagged,
-                minAmount: _filter.minAmount,
-                maxAmount: _filter.maxAmount,
-              );
-            });
-          },
-        ),
-        SizedBox(height: 16),
-        if (expenses.isNotEmpty)
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                final dateRange = _filter.dateRange ?? DateRangeHelper.getCurrentMonthRange();
-                ref.invalidate(expensesByDateRangeProvider(dateRange));
+    // Using CustomScrollView with slivers to allow the summary card (with
+    // expandable calendar) and expense list to scroll together. This prevents
+    // RenderFlex overflow when the calendar expands, as the entire content
+    // becomes scrollable rather than fighting for fixed space in a Column.
+    return RefreshIndicator(
+      onRefresh: () async {
+        final dateRange =
+            _filter.dateRange ?? DateRangeHelper.getCurrentMonthRange();
+        ref.invalidate(expensesByDateRangeProvider(dateRange));
+      },
+      color: Theme.of(context).colorScheme.primary,
+      child: CustomScrollView(
+        slivers: [
+          // Summary card with expandable calendar
+          SliverToBoxAdapter(
+            child: ExpenseSummaryCard(
+              expenses: expenses,
+              dateRange: _filter.dateRange,
+              onDateRangeSelected: (dateRange) {
+                setState(() {
+                  _filter = ExpenseFilter(
+                    dateRange: dateRange,
+                    currencyFilter: _filter.currencyFilter,
+                    selectedSpentTypes: _filter.selectedSpentTypes,
+                    selectedPaymentSources: _filter.selectedPaymentSources,
+                    showOnlyFlagged: _filter.showOnlyFlagged,
+                    minAmount: _filter.minAmount,
+                    maxAmount: _filter.maxAmount,
+                  );
+                });
               },
-              color: Theme.of(context).colorScheme.primary,
-              child: ListView.builder(
-                padding: EdgeInsets.only(bottom: 100),
-                itemCount: expenses.length,
-                itemBuilder: (context, index) {
+            ),
+          ),
+          // Spacing
+          SliverToBoxAdapter(
+            child: SizedBox(height: 16),
+          ),
+          // Expense list or empty state
+          if (expenses.isNotEmpty)
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
                   return ExpenseCard(
                     expense: expenses[index],
                     onTap: () => _openExpenseEditor(expenses[index]),
                     onDelete: () => _confirmDeleteExpense(expenses[index]),
                   );
                 },
+                childCount: expenses.length,
+              ),
+            )
+          else
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyState(
+                icon: Icons.filter_list_off_rounded,
+                title: 'No matching expenses',
+                message: 'Try adjusting your filters',
               ),
             ),
-          )
-        else
-          Expanded(
-            child: EmptyState(
-              icon: Icons.filter_list_off_rounded,
-              title: 'No matching expenses',
-              message: 'Try adjusting your filters',
-            ),
+          // Bottom padding for FAB clearance
+          SliverToBoxAdapter(
+            child: SizedBox(height: 100),
           ),
-      ],
+        ],
+      ),
     );
   }
 

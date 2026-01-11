@@ -8,7 +8,7 @@ import '../utils/notification_helper.dart';
 
 class PlaceNameService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const int _maxItems = 100;
+  static const int _maxItems = 300;
 
   /// Adds a new place name with notification (for profile settings)
   static Future<void> add(
@@ -28,10 +28,7 @@ class PlaceNameService {
       }
     } catch (e) {
       if (context.mounted) {
-        NotificationHelper.showError(
-          context,
-          'Error: ${e.toString()}',
-        );
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
   }
@@ -56,11 +53,7 @@ class PlaceNameService {
         .collection('users')
         .doc(userId)
         .collection('placeNames')
-        .add({
-          'name': name,
-          'isActive': true,
-          'createdAt': DateTime.now(),
-        });
+        .add({'name': name, 'isActive': true, 'createdAt': DateTime.now()});
   }
 
   /// Enforces the 100 item limit by deleting oldest items
@@ -93,7 +86,8 @@ class PlaceNameService {
         .get();
 
     return snapshot.docs.any(
-      (doc) => (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
+      (doc) =>
+          (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
     );
   }
 
@@ -121,10 +115,7 @@ class PlaceNameService {
       }
     } catch (e) {
       if (context.mounted) {
-        NotificationHelper.showError(
-          context,
-          'Error: ${e.toString()}',
-        );
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
   }
@@ -162,7 +153,10 @@ class PlaceNameService {
                   children: [
                     Text(
                       'Delete Place Name',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     SizedBox(height: 16),
                     Text(
@@ -225,7 +219,9 @@ class PlaceNameService {
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: isLoading
-                    ? Theme.of(dialogContext).colorScheme.onSurface.withValues(alpha: 0.3)
+                    ? Theme.of(
+                        dialogContext,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3)
                     : null,
               ),
             ),

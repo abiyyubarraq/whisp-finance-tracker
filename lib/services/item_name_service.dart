@@ -8,7 +8,7 @@ import '../utils/notification_helper.dart';
 
 class ItemNameService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const int _maxItems = 100;
+  static const int _maxItems = 600;
 
   /// Adds a new item name with notification (for profile settings)
   static Future<void> add(
@@ -21,17 +21,11 @@ class ItemNameService {
       await _enforceLimit(userId);
 
       if (context.mounted) {
-        NotificationHelper.showSuccess(
-          context,
-          'Item name added successfully',
-        );
+        NotificationHelper.showSuccess(context, 'Item name added successfully');
       }
     } catch (e) {
       if (context.mounted) {
-        NotificationHelper.showError(
-          context,
-          'Error: ${e.toString()}',
-        );
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
   }
@@ -56,11 +50,7 @@ class ItemNameService {
         .collection('users')
         .doc(userId)
         .collection('itemNames')
-        .add({
-          'name': name,
-          'isActive': true,
-          'createdAt': DateTime.now(),
-        });
+        .add({'name': name, 'isActive': true, 'createdAt': DateTime.now()});
   }
 
   /// Enforces the 100 item limit by deleting oldest items
@@ -93,7 +83,8 @@ class ItemNameService {
         .get();
 
     return snapshot.docs.any(
-      (doc) => (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
+      (doc) =>
+          (doc.data()['name'] as String).toLowerCase() == name.toLowerCase(),
     );
   }
 
@@ -121,10 +112,7 @@ class ItemNameService {
       }
     } catch (e) {
       if (context.mounted) {
-        NotificationHelper.showError(
-          context,
-          'Error: ${e.toString()}',
-        );
+        NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
   }
@@ -162,7 +150,10 @@ class ItemNameService {
                   children: [
                     Text(
                       'Delete Item Name',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     SizedBox(height: 16),
                     Text(
@@ -225,7 +216,9 @@ class ItemNameService {
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: isLoading
-                    ? Theme.of(dialogContext).colorScheme.onSurface.withValues(alpha: 0.3)
+                    ? Theme.of(
+                        dialogContext,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3)
                     : null,
               ),
             ),
