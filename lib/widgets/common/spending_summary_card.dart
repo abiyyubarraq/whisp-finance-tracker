@@ -64,15 +64,16 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
     final missingDays = _calculateMissingDays();
 
     return GradientGlassContainer(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMainStat(context, total),
           AnimatedCrossFade(
             firstChild: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: 16),
+                SizedBox(height: 12),
                 MiniStatCard(
                   dateLabel: dateLabel,
                   transactionCount: transactionCount,
@@ -86,7 +87,7 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
                   missingDays: missingDays,
                   onTap: widget.onDateRangeTap,
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: 8),
                 _buildCalendarView(context),
               ],
             ),
@@ -234,14 +235,14 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
             : Colors.white.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(10),
       ),
-      padding: EdgeInsets.all(6),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Month header - compact
           Padding(
-            padding: EdgeInsets.only(bottom: 4),
+            padding: EdgeInsets.only(bottom: 2),
             child: Center(
               child: Text(
                 '${monthNames[month - 1]} $year',
@@ -272,7 +273,7 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
               );
             }).toList(),
           ),
-          SizedBox(height: 2),
+          SizedBox(height: 1),
           // Calendar grid using LayoutBuilder for responsive cell sizing
           // Using Wrap instead of GridView to avoid extra space after last row
           LayoutBuilder(
@@ -286,7 +287,8 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
               const double spacing = 1.0;
               final cellWidth = (constraints.maxWidth - (spacing * 6)) / 7;
               final cellHeight =
-                  cellWidth / 2.0; // Aspect ratio 2:1 (width:height)
+                  cellWidth /
+                  2.2; // Aspect ratio 2.2:1 (width:height) - balanced
 
               return Wrap(
                 spacing: spacing,
@@ -383,7 +385,7 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Day number - compact font size
+            // Day number - readable font size
             Text(
               dayNumber.toString(),
               style: TextStyle(
@@ -395,16 +397,19 @@ class _SpendingSummaryCardState extends State<SpendingSummaryCard> {
             ),
             // Amount (only show if has expenses and not future)
             if (hasExpenses && !isFuture)
-              Text(
-                _formatDayAmount(amount),
-                style: TextStyle(
-                  fontSize: 7,
-                  fontWeight: FontWeight.w600,
-                  color: amountColor,
-                  height: 2.0,
+              Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Text(
+                  _formatDayAmount(amount),
+                  style: TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w600,
+                    color: amountColor,
+                    height: 1.0,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
