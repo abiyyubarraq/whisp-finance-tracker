@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../utils/filter_sort.dart';
+import '../../utils/date_range_helper.dart';
 import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
 import '../../providers/user_data_provider.dart';
@@ -377,51 +378,13 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
   }
 
   Future<void> _pickDateRange() async {
-    try {
-      final now = DateTime.now();
-      final lastDate = DateTime(now.year, now.month, now.day);
+    final picked = await DateRangeHelper.showPicker(
+      context,
+      initialRange: _filter.dateRange,
+    );
 
-      DateTimeRange? initialRange;
-      if (_filter.dateRange != null) {
-        // Clamp the existing date range to ensure it's within valid bounds
-        final clampedStart = _filter.dateRange!.start.isBefore(DateTime(2020))
-            ? DateTime(2020)
-            : (_filter.dateRange!.start.isAfter(lastDate)
-                  ? lastDate
-                  : _filter.dateRange!.start);
-        final clampedEnd = _filter.dateRange!.end.isAfter(lastDate)
-            ? lastDate
-            : (_filter.dateRange!.end.isBefore(clampedStart)
-                  ? clampedStart
-                  : _filter.dateRange!.end);
-        initialRange = DateTimeRange(start: clampedStart, end: clampedEnd);
-      }
-
-      final picked = await showDateRangePicker(
-        context: context,
-        firstDate: DateTime(2020),
-        lastDate: lastDate,
-        initialDateRange: initialRange,
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context),
-            child: Dialog(
-              backgroundColor: Colors.transparent,
-              insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 600, maxHeight: 600),
-                child: child,
-              ),
-            ),
-          );
-        },
-      );
-
-      if (picked != null) {
-        setState(() => _filter.dateRange = picked);
-      }
-    } catch (e) {
-      debugPrint('Error showing date range picker: $e');
+    if (picked != null) {
+      setState(() => _filter.dateRange = picked);
     }
   }
 

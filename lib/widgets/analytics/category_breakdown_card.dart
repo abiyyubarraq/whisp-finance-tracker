@@ -29,11 +29,17 @@ class CategoryBreakdownCard extends StatelessWidget {
           if (categoryTotals.isEmpty)
             _buildEmptyState(context)
           else
-            ...categoryTotals.entries.map((entry) {
+            ...() {
+              // Calculate total and sort categories by value (descending)
               final total = categoryTotals.values.fold<double>(0, (a, b) => a + b);
-              final percentage = (entry.value / total * 100);
-              return _buildCategoryRow(context, entry.key, entry.value, percentage, isDark);
-            }),
+              final sortedEntries = categoryTotals.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value));
+
+              return sortedEntries.map((entry) {
+                final percentage = (entry.value / total * 100);
+                return _buildCategoryRow(context, entry.key, entry.value, percentage, isDark);
+              });
+            }(),
         ],
       ),
     );
@@ -119,13 +125,26 @@ class CategoryBreakdownCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Text(
-                CurrencyFormatter.formatCompact(value, 'IDR'),
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+              Row(
+                children: [
+                  Text(
+                    '${percentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    CurrencyFormatter.formatCompact(value, 'IDR'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

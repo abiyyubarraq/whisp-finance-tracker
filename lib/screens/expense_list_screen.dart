@@ -33,9 +33,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   @override
   void initState() {
     super.initState();
-    _filter = ExpenseFilter(
-      dateRange: DateRangeHelper.getCurrentMonthRange(),
-    );
+    _filter = ExpenseFilter(dateRange: DateRangeHelper.getCurrentMonthRange());
   }
 
   @override
@@ -47,7 +45,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     }
 
     // Use the date range from filter, default to current month if null
-    final dateRange = _filter.dateRange ?? DateRangeHelper.getCurrentMonthRange();
+    final dateRange =
+        _filter.dateRange ?? DateRangeHelper.getCurrentMonthRange();
     final expensesAsync = ref.watch(expensesByDateRangeProvider(dateRange));
 
     return Scaffold(
@@ -70,7 +69,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           debugPrint('Error loading expenses: $error');
           return ErrorState(
             message: 'Failed to load expenses',
-            onRetry: () => ref.invalidate(expensesByDateRangeProvider(dateRange)),
+            onRetry: () =>
+                ref.invalidate(expensesByDateRangeProvider(dateRange)),
           );
         },
       ),
@@ -86,10 +86,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         hasActiveIndicator: _filter.hasActiveFilters(),
       ),
       SizedBox(width: 8),
-      GradientActionButton(
-        icon: Icons.sort_rounded,
-        onTap: _showSortSheet,
-      ),
+      GradientActionButton(icon: Icons.sort_rounded, onTap: _showSortSheet),
       SizedBox(width: 8),
       GradientActionButton(
         icon: Icons.person_rounded,
@@ -143,22 +140,17 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             ),
           ),
           // Spacing
-          SliverToBoxAdapter(
-            child: SizedBox(height: 16),
-          ),
+          SliverToBoxAdapter(child: SizedBox(height: 16)),
           // Expense list or empty state
           if (expenses.isNotEmpty)
             SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return ExpenseCard(
-                    expense: expenses[index],
-                    onTap: () => _openExpenseEditor(expenses[index]),
-                    onDelete: () => _confirmDeleteExpense(expenses[index]),
-                  );
-                },
-                childCount: expenses.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return ExpenseCard(
+                  expense: expenses[index],
+                  onTap: () => _openExpenseEditor(expenses[index]),
+                  onDelete: () => _confirmDeleteExpense(expenses[index]),
+                );
+              }, childCount: expenses.length),
             )
           else
             SliverFillRemaining(
@@ -170,9 +162,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
               ),
             ),
           // Bottom padding for FAB clearance
-          SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
+          SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
@@ -225,8 +215,23 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
       switch (_sort.field) {
         case SortField.spentAt:
-          comparison = a.spentAt.compareTo(b.spentAt);
-          break;
+          // Compare dates only (ignore time component)
+          final aDate = DateTime(a.spentAt.year, a.spentAt.month, a.spentAt.day);
+          final bDate = DateTime(b.spentAt.year, b.spentAt.month, b.spentAt.day);
+          comparison = aDate.compareTo(bDate);
+
+          // Apply direction to date comparison
+          comparison = _sort.direction == SortDirection.ascending
+              ? comparison
+              : -comparison;
+
+          // If dates are the same, sort by value (highest first, always)
+          if (comparison == 0) {
+            comparison = b.totalValue.compareTo(a.totalValue);
+          }
+
+          return comparison;
+
         case SortField.value:
           comparison = a.totalValue.compareTo(b.totalValue);
           break;
@@ -298,7 +303,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     final confirmed = await showConfirmationDialog(
       context: context,
       title: 'Delete Expense',
-      message: 'Are you sure you want to delete this expense? This action cannot be undone.',
+      message:
+          'Are you sure you want to delete this expense? This action cannot be undone.',
       confirmText: 'Delete',
       isDestructive: true,
     );
