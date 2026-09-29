@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/glass_container.dart';
 import '../../config/theme.dart';
 import '../../utils/notification_helper.dart';
+import '../../utils/test_keys.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -163,6 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       GlassContainer(
                         padding: EdgeInsets.zero,
                         child: TextFormField(
+                          key: TestKeys.loginEmailField,
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
@@ -190,6 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       GlassContainer(
                         padding: EdgeInsets.zero,
                         child: TextFormField(
+                          key: TestKeys.loginPasswordField,
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
@@ -267,29 +270,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         child: Material(
                           color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _isLoading ? null : _login,
-                            borderRadius: BorderRadius.circular(16),
-                            child: Center(
-                              child: _isLoading
-                                  ? SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation(
-                                          Colors.white,
+                          child: Semantics(
+                            label: 'Sign in',
+                            button: true,
+                            child: InkWell(
+                              key: TestKeys.loginSignInButton,
+                              onTap: _isLoading ? null : _login,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Center(
+                                child: _isLoading
+                                    ? SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    // Hidden from screen readers: the Semantics
+                                    // label above already names this button.
+                                    : ExcludeSemantics(
+                                        child: Text(
+                                          'Sign In',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
-                                    )
-                                  : Text(
-                                      'Sign In',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                              ),
                             ),
                           ),
                         ),

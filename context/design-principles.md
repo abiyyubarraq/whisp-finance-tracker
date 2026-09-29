@@ -915,6 +915,7 @@ While testing documentation is excluded per user request, maintain testable code
 - Use dependency injection via Riverpod
 - Avoid tight coupling between layers
 - Make widgets accept data via constructors
+- Give widgets that tests or Maestro must find a key from `lib/utils/test_keys.dart` and a `Semantics` label (see README → Testing)
 
 ---
 
