@@ -11,6 +11,9 @@ class GradientActionButton extends StatelessWidget {
   final double size;
   final double iconSize;
 
+  /// Label read by screen readers and matched by UI tests such as Maestro.
+  final String? semanticLabel;
+
   const GradientActionButton({
     super.key,
     required this.icon,
@@ -18,13 +21,14 @@ class GradientActionButton extends StatelessWidget {
     this.hasActiveIndicator = false,
     this.size = 40,
     this.iconSize = 20,
+    this.semanticLabel,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Stack(
+    final button = Stack(
       children: [
         Container(
           width: size,
@@ -67,5 +71,8 @@ class GradientActionButton extends StatelessWidget {
           ),
       ],
     );
+
+    if (semanticLabel == null) return button;
+    return Semantics(label: semanticLabel, button: true, child: button);
   }
 }

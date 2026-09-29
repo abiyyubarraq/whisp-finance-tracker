@@ -1,0 +1,12 @@
+# Opens the app with no saved session and checks that the login screen shows.
+# Run: maestro test .maestro/smoke.yaml (debug build installed first).
+appId: com.example.whisper_finance_tracker
+---
+- clearState
+- launchApp
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 30000
+- assertVisible: "Email"
+- assertVisible: "Password"
+- assertVisible: "Sign in"

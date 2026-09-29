@@ -17,6 +17,7 @@ import '../widgets/expense_list/filter_sheet.dart';
 import '../widgets/common/confirmation_dialog.dart';
 import '../utils/notification_helper.dart';
 import '../services/expense_service.dart';
+import '../utils/test_keys.dart';
 import 'expense_edit_screen.dart';
 
 class ExpenseListScreen extends ConsumerStatefulWidget {
@@ -89,7 +90,9 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       GradientActionButton(icon: Icons.sort_rounded, onTap: _showSortSheet),
       SizedBox(width: 8),
       GradientActionButton(
+        key: TestKeys.homeProfileButton,
         icon: Icons.person_rounded,
+        semanticLabel: 'Profile',
         onTap: () => Navigator.pushNamed(context, '/profile'),
       ),
     ];

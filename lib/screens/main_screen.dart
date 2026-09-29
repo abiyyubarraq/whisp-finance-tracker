@@ -5,6 +5,7 @@ import 'analytics_screen.dart';
 import 'add_expense_modal.dart';
 import '../widgets/glass_container.dart';
 import '../config/theme.dart';
+import '../utils/test_keys.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -105,6 +106,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           children: [
             _buildNavItem(
               context,
+              itemKey: TestKeys.homeExpensesTab,
+              semanticLabel: 'Expenses tab',
               icon: Icons.receipt_long_rounded,
               index: 0,
               isDark: isDark,
@@ -112,6 +115,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             _buildAddButton(context, isDark),
             _buildNavItem(
               context,
+              itemKey: TestKeys.homeAnalyticsTab,
+              semanticLabel: 'Analytics tab',
               icon: Icons.analytics_rounded,
               index: 1,
               isDark: isDark,
@@ -124,80 +129,97 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   Widget _buildNavItem(
     BuildContext context, {
+    required Key itemKey,
+    required String semanticLabel,
     required IconData icon,
     required int index,
     required bool isDark,
   }) {
     final isSelected = _currentIndex == index;
 
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      child: Container(
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: isDark
-                      ? AppTheme.gradientDark
-                      : AppTheme.gradientLight,
-                )
-              : null,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color:
-                        (isDark ? AppTheme.primaryDark : AppTheme.primaryLight)
-                            .withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          icon,
-          color: isSelected
-              ? Colors.white
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-          size: 24,
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        key: itemKey,
+        onTap: () => setState(() => _currentIndex = index),
+        child: Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: isDark
+                        ? AppTheme.gradientDark
+                        : AppTheme.gradientLight,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color:
+                          (isDark
+                                  ? AppTheme.primaryDark
+                                  : AppTheme.primaryLight)
+                              .withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(
+            icon,
+            color: isSelected
+                ? Colors.white
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
+            size: 24,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildAddButton(BuildContext context, bool isDark) {
-    return GestureDetector(
-      onTap: () => _showAddExpenseModal(context),
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFF512F), // Bright red
-              Color(0xFFDD2476), // Deep rose
+    return Semantics(
+      label: 'Add expense',
+      button: true,
+      child: GestureDetector(
+        key: TestKeys.homeAddButton,
+        onTap: () => _showAddExpenseModal(context),
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFFF512F), // Bright red
+                Color(0xFFDD2476), // Deep rose
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFFFF512F).withValues(alpha: 0.6),
+                blurRadius: 24,
+                spreadRadius: 2,
+                offset: Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Color(0xFFDD2476).withValues(alpha: 0.4),
+                blurRadius: 16,
+                spreadRadius: 0,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFFFF512F).withValues(alpha: 0.6),
-              blurRadius: 24,
-              spreadRadius: 2,
-              offset: Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Color(0xFFDD2476).withValues(alpha: 0.4),
-              blurRadius: 16,
-              spreadRadius: 0,
-              offset: Offset(0, 4),
-            ),
-          ],
+          child: Icon(Icons.add_rounded, color: Colors.white, size: 32),
         ),
-        child: Icon(Icons.add_rounded, color: Colors.white, size: 32),
       ),
     );
   }

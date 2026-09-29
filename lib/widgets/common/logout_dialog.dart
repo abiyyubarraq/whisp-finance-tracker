@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 import '../../providers/auth_provider.dart';
 import '../glass_container.dart';
+import '../../utils/test_keys.dart';
 
 void showLogoutDialog(BuildContext context, WidgetRef ref) {
   showDialog(
@@ -102,19 +103,28 @@ Widget _buildLogoutButton(BuildContext dialogContext, WidgetRef ref) {
     ),
     child: Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: () async {
-          Navigator.pop(dialogContext);
-          await ref.read(authServiceProvider).signOut();
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Center(
-          child: Text(
-            'Logout',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+      child: Semantics(
+        label: 'Confirm logout',
+        button: true,
+        child: InkWell(
+          key: TestKeys.logoutConfirmButton,
+          onTap: () async {
+            Navigator.pop(dialogContext);
+            await ref.read(authServiceProvider).signOut();
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            // Hidden from screen readers: the Semantics label above already
+            // names this button.
+            child: ExcludeSemantics(
+              child: Text(
+                'Logout',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ),

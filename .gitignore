@@ -115,6 +115,7 @@ firebase_options.dart
 
 # API Keys and Secrets
 **/secrets/
+.ship.defines.json
 api_keys.dart
 secrets.dart
 

@@ -148,7 +148,13 @@ lib/
 │   └── confirm_expense_form.dart
 └── utils/
     ├── constants.dart       # Default data
-    └── filter_sort.dart     # Filter/sort utilities
+    ├── filter_sort.dart     # Filter/sort utilities
+    └── test_keys.dart       # Widget keys used by tests
+
+test/                        # Unit and widget tests (offline)
+integration_test/            # On-device tests (real Firebase, test account)
+└── helpers/                 # Shared start / wait / sign-out helpers
+.maestro/                    # Maestro UI flows
 ```
 
 ## Usage
@@ -174,6 +180,76 @@ View spending insights, category breakdowns, and period comparisons in the Analy
 On registration, users get:
 - **Payment Sources**: Cash, Credit Card, Debit Card, Bank Transfer, E-Wallet
 - **Categories**: Food, Coffee, Transportation, Utilities, Shopping, Entertainment, Health, Education, Other
+
+## Testing
+
+| Kind | Folder | Needs |
+|---|---|---|
+| Unit and widget tests | `test/` | Nothing. Runs offline, no Firebase. |
+| Integration tests | `integration_test/` | Android emulator, Firebase config, `.ship.defines.json` |
+| Maestro smoke flow | `.maestro/` | Android emulator, debug build installed, [Maestro CLI](https://maestro.mobile.dev) |
+
+Integration tests use the real Firebase project. They sign in only with the test account and create no data. If a future test must create data, prefix it with `ship-test-` and delete it at the end.
+
+### 1. Create `.ship.defines.json`
+
+Create `.ship.defines.json` in the project root. It is git-ignored: never commit it. Use the test account only, never a real user's account.
+
+```json
+{
+  "GEMINI_API_KEY": "<your Gemini API key>",
+  "TEST_EMAIL": "<test account email>",
+  "TEST_PASSWORD": "<test account password>"
+}
+```
+
+Pass it to builds and tests with `--dart-define-from-file=.ship.defines.json`. The tests read the values with `String.fromEnvironment`, so nothing is hard-coded.
+
+### 2. Unit and widget tests
+
+```bash
+flutter test
+```
+
+### 3. Integration tests (Android emulator)
+
+```bash
+flutter devices   # find the emulator id, for example emulator-5554
+
+flutter test integration_test/app_smoke_test.dart -d <emulator> --dart-define-from-file=.ship.defines.json
+flutter test integration_test/login_test.dart -d <emulator> --dart-define-from-file=.ship.defines.json
+```
+
+- `app_smoke_test.dart` starts the app, signs out any saved session, and checks the login screen.
+- `login_test.dart` signs in with `TEST_EMAIL` / `TEST_PASSWORD`, checks the home screen, then logs out through Profile. When either value is empty, the test is **skipped** (not failed) and the skip reason names the missing value.
+
+### 4. Maestro smoke flow
+
+Install the debug build on the emulator first, then run the flow. `--target-platform android-x64` builds only for the x86_64 emulator, so the APK is much smaller and fits on an emulator with little free storage:
+
+```bash
+flutter build apk --debug --target-platform android-x64 --dart-define-from-file=.ship.defines.json
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+
+maestro test .maestro/smoke.yaml
+# with more than one device connected:
+maestro --device <emulator> test .maestro/smoke.yaml
+```
+
+The flow clears the app data first (`clearState`), so it always starts signed out, and checks that the login screen shows.
+
+### Keys and labels for tests
+
+Widgets that tests need have a key in `lib/utils/test_keys.dart` (for Flutter tests) and a screen reader label (for Maestro, which matches labels and visible text).
+
+| Screen | Key (`TestKeys.`) | Label |
+|---|---|---|
+| Login | `loginEmailField`, `loginPasswordField` | `Email`, `Password` (from the field hint) |
+| Login | `loginSignInButton` | `Sign in` |
+| Home | `homeExpensesTab`, `homeAnalyticsTab` | `Expenses tab`, `Analytics tab` |
+| Home | `homeAddButton`, `homeProfileButton` | `Add expense`, `Profile` |
+| Profile | `profileLogoutButton` | `Logout` |
+| Logout dialog | `logoutConfirmButton` | `Confirm logout` |
 
 ## Troubleshooting
 
