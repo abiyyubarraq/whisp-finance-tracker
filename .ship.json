@@ -69,7 +69,6 @@
     "android/app/google-services.json"
   ],
   "merge": "squash",
-  "maxRounds": 3,
   "maxParallel": 2,
   "laneWhen": {
     "android": [
