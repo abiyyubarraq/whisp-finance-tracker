@@ -5,33 +5,77 @@
     "analyze": "flutter analyze --no-fatal-infos",
     "test": "if [ -d test ]; then flutter test; else echo 'no unit tests yet'; fi"
   },
-  "verify": ["none", "web", "android", "maestro"],
+  "verify": [
+    "none",
+    "web",
+    "android",
+    "maestro"
+  ],
   "serve": {
     "build": "flutter build web --no-tree-shake-icons --dart-define-from-file=.ship.defines.json",
     "static": "build/web",
     "port": 5000,
     "readyTimeout": 60
   },
-  "devices": { "android": "Medium_Phone" },
+  "devices": {
+    "android": "Medium_Phone"
+  },
   "worktree": {
-    "copy": ["lib/firebase_options.dart", "android/app/google-services.json", ".ship.defines.json"],
-    "setup": ["flutter pub get"]
+    "copy": [
+      "lib/firebase_options.dart",
+      "android/app/google-services.json",
+      ".ship.defines.json"
+    ],
+    "setup": [
+      "flutter pub get"
+    ]
   },
   "docs": [
-    { "path": "context/architecture.md", "role": "reference" },
-    { "path": "context/design-principles.md", "role": "reference" },
-    { "path": "context/firebase.md", "role": "reference" },
-    { "path": "CLAUDE.md", "role": "rules" }
+    {
+      "path": "context/architecture.md",
+      "role": "reference"
+    },
+    {
+      "path": "context/design-principles.md",
+      "role": "reference"
+    },
+    {
+      "path": "context/firebase.md",
+      "role": "reference"
+    },
+    {
+      "path": "CLAUDE.md",
+      "role": "rules"
+    }
   ],
-  "schema": { "sources": ["lib/models/**", "lib/services/**", "firestore.rules", "context/firebase.md"], "live": "firebase MCP (read-only use: rules, indexes, config)" },
+  "schema": {
+    "sources": [
+      "lib/models/**",
+      "lib/services/**",
+      "firestore.rules",
+      "context/firebase.md"
+    ],
+    "live": "firebase MCP (read-only use: rules, indexes, config)"
+  },
   "rules": [
     "Every screen must work in dark and light theme.",
     "Every database action shows a loading state, a success/error message via NotificationHelper, and deletes ask for confirmation.",
     "Builds and tests pass --dart-define-from-file=.ship.defines.json (Gemini key, test account). Never hard-code them.",
     "Tests and verification sign in only with the test account; test data is prefixed ship-test- and cleaned up."
   ],
-  "neverCommit": [".ship.defines.json", "lib/firebase_options.dart", "android/app/google-services.json"],
+  "neverCommit": [
+    ".ship.defines.json",
+    "lib/firebase_options.dart",
+    "android/app/google-services.json"
+  ],
   "merge": "squash",
   "maxRounds": 3,
-  "maxParallel": 2
+  "maxParallel": 2,
+  "laneWhen": {
+    "android": [
+      "lib/screens/**",
+      "lib/widgets/**",
+      "lib/main.dart"
+    ]
+  }
 }
