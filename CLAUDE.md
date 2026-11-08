@@ -666,6 +666,22 @@ dart format lib/
 flutter clean && flutter pub get
 ```
 
+### Test Commands
+
+```bash
+# Unit and widget tests (offline, no Firebase)
+flutter test
+
+# Integration tests on the Android emulator (real Firebase, test account only)
+flutter test integration_test/app_smoke_test.dart -d <emulator> --dart-define-from-file=.ship.defines.json
+flutter test integration_test/login_test.dart -d <emulator> --dart-define-from-file=.ship.defines.json
+
+# Maestro smoke flow (debug build installed first)
+maestro test .maestro/smoke.yaml
+```
+
+See README → Testing for `.ship.defines.json` and details.
+
 ### Environment Setup
 
 1. Create `.env` file in project root (not committed to git)
@@ -702,3 +718,5 @@ flutter clean && flutter pub get
 - Implement proper loading, error, and empty states in all screens
 - Test on both dark and light themes
 - Consider performance: use `RepaintBoundary` for complex widgets
+- Widgets that tests must find get a key from `lib/utils/test_keys.dart` (one constant per key, one widget per key on screen) and a plain English `Semantics(label: ...)` so Maestro can match it. If the widget already shows the same text, wrap that text in `ExcludeSemantics` so screen readers do not read it twice
+- Integration tests sign in only with `TEST_EMAIL` / `TEST_PASSWORD` from `.ship.defines.json` via `String.fromEnvironment`, never hard-coded, and create no data (or prefix it `ship-test-` and delete it); use the helpers in `integration_test/helpers/app_harness.dart`

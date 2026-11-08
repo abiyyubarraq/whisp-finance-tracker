@@ -7,6 +7,7 @@ import '../widgets/theme_toggle.dart';
 import '../config/theme.dart';
 import '../widgets/profile/profile_header.dart';
 import '../widgets/common/logout_dialog.dart';
+import '../utils/test_keys.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -337,24 +338,33 @@ class ProfileScreen extends ConsumerWidget {
         ),
         child: Material(
           color: Colors.transparent,
-          child: InkWell(
-            onTap: () => showLogoutDialog(context, ref),
-            borderRadius: BorderRadius.circular(16),
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.logout_rounded, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Logout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+          child: Semantics(
+            label: 'Logout',
+            button: true,
+            child: InkWell(
+              key: TestKeys.profileLogoutButton,
+              onTap: () => showLogoutDialog(context, ref),
+              borderRadius: BorderRadius.circular(16),
+              child: Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded, color: Colors.white),
+                    SizedBox(width: 8),
+                    // Hidden from screen readers: the Semantics label above
+                    // already names this button.
+                    ExcludeSemantics(
+                      child: Text(
+                        'Logout',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
