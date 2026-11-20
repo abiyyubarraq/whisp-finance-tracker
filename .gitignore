@@ -224,3 +224,6 @@ lib/l10n/
 .env.*
 !.env.example
 !.env.*.example
+
+# FVM Version Cache
+.fvm/
